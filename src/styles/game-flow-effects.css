@@ -1,0 +1,599 @@
+/* 対戦進行の演出。背景・装飾・文字を同じパレットで管理する。
+   表示時間は GameFlowEffects.tsx の各 EFFECT_DURATION と対応する。 */
+.game-flow-fx-layer {
+  position: fixed;
+  z-index: 230;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.game-flow-fx-live-start,
+.game-flow-fx-turn,
+.game-flow-fx-result {
+  --flow-color: 7, 157, 194;
+  --flow-accent: 105, 200, 220;
+  --flow-ink: #007a9b;
+  --flow-surface: 239, 249, 253;
+  --flow-duration: 1900ms;
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+
+.game-flow-fx-live-start-veil,
+.game-flow-fx-result-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at center,
+      #ffffffeb,
+      rgba(var(--flow-surface), 0.86) 58%,
+      rgba(var(--flow-surface), 0.6)
+    ),
+    linear-gradient(120deg, rgba(var(--flow-color), 0.05), transparent 65%);
+  opacity: 0;
+  animation: flow-veil var(--flow-duration) ease both;
+}
+
+/* LIVE START: 淡い多色のライトを白い盤面へ重ねる。移動とフェードの時間は分ける。 */
+.game-flow-fx-live-start {
+  --light-cyan: 7, 157, 194;
+  --light-pink: 221, 112, 169;
+  --light-purple: 145, 122, 213;
+  --light-mint: 68, 173, 147;
+  --light-sweep-duration: 1600ms;
+}
+.game-flow-fx-live-start-moving-lights,
+.game-flow-fx-result-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.game-flow-fx-live-start-moving-lights > i {
+  --light-color: var(--light-cyan);
+  --light-x: 8%;
+  --light-start: -14deg;
+  --light-end: 18deg;
+  position: absolute;
+  top: -5%;
+  left: var(--light-x);
+  width: clamp(100px, 18vw, 240px);
+  height: 110%;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--light-color), 0.22),
+    rgba(var(--light-color), 0.07) 65%,
+    transparent
+  );
+  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  opacity: 0;
+  animation:
+    flow-light-fade var(--flow-duration) ease-in-out both,
+    flow-light-sweep var(--light-sweep-duration) ease-in-out both;
+}
+.game-flow-fx-live-start-moving-lights > i:nth-child(2) {
+  --light-color: var(--light-pink);
+  --light-x: 23%;
+  --light-start: 14deg;
+  --light-end: -12deg;
+}
+.game-flow-fx-live-start-moving-lights > i:nth-child(3) {
+  --light-color: var(--light-purple);
+  --light-x: 40%;
+  --light-start: -12deg;
+  --light-end: 8deg;
+}
+.game-flow-fx-live-start-moving-lights > i:nth-child(4) {
+  --light-color: var(--light-mint);
+  --light-x: 60%;
+  --light-start: 12deg;
+  --light-end: -8deg;
+}
+.game-flow-fx-live-start-moving-lights > i:nth-child(5) {
+  --light-x: 77%;
+  --light-start: -14deg;
+  --light-end: 12deg;
+}
+.game-flow-fx-live-start-moving-lights > i:nth-child(6) {
+  --light-color: var(--light-pink);
+  --light-x: 92%;
+  --light-start: 14deg;
+  --light-end: -18deg;
+}
+.game-flow-fx-live-start-floor {
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  width: min(94vw, 980px);
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    rgba(var(--flow-accent), 0.13),
+    transparent 70%
+  );
+  transform: translateX(-50%);
+  animation: flow-veil var(--flow-duration) ease both;
+}
+.game-flow-fx-live-start-floor > i {
+  --light-color: var(--light-cyan);
+  position: absolute;
+  left: 18%;
+  bottom: 24%;
+  width: 28%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    rgba(var(--light-color), 0.1),
+    transparent 68%
+  );
+}
+.game-flow-fx-live-start-floor > i:nth-child(2) {
+  --light-color: var(--light-pink);
+  left: 38%;
+}
+.game-flow-fx-live-start-floor > i:nth-child(3) {
+  --light-color: var(--light-mint);
+  left: 58%;
+}
+.game-flow-fx-live-start-beams,
+.game-flow-fx-result-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(640px, 94vw);
+  aspect-ratio: 1;
+  background: repeating-conic-gradient(
+    from 5deg,
+    rgba(var(--flow-color), 0.08) 0deg 2deg,
+    transparent 2deg 22deg
+  );
+  mask-image: radial-gradient(
+    circle,
+    transparent 8%,
+    #000 25%,
+    transparent 65%
+  );
+  opacity: 0;
+  animation: flow-rays var(--flow-duration) ease-out both;
+}
+.game-flow-fx-live-start-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(56vw, 430px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(var(--flow-color), 0.28);
+  border-radius: 50%;
+  opacity: 0;
+  animation: flow-ring 1600ms ease-out 100ms both;
+}
+.game-flow-fx-live-start-ring.ring-two {
+  width: min(68vw, 560px);
+  border-color: rgba(var(--flow-accent), 0.32);
+  animation-delay: 230ms;
+}
+
+/* バナーは単一の白い面と細い色線で構成し、文字に暗い発光影を付けない。 */
+.game-flow-fx-live-start-banner,
+.game-flow-fx-turn-banner,
+.game-flow-fx-result-banner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: min(92vw, 760px);
+  min-height: 174px;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  color: var(--flow-ink);
+  text-align: center;
+  opacity: 0;
+  animation: flow-banner var(--flow-duration) cubic-bezier(0.22, 0.7, 0.3, 1)
+    both;
+}
+.game-flow-fx-live-start-banner,
+.game-flow-fx-result-banner {
+  background: linear-gradient(
+    90deg,
+    #ffffff00,
+    #fffffff0 18%,
+    #fffffff0 82%,
+    #ffffff00
+  );
+}
+.game-flow-fx-live-start-banner::before,
+.game-flow-fx-live-start-banner::after,
+.game-flow-fx-result-banner::before,
+.game-flow-fx-result-banner::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--flow-color), 0.45),
+    transparent
+  );
+}
+.game-flow-fx-live-start-banner::after,
+.game-flow-fx-result-banner::after {
+  top: auto;
+  bottom: 0;
+}
+.game-flow-fx-live-start-banner span,
+.game-flow-fx-turn-banner span,
+.game-flow-fx-result-banner span {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.24em;
+  line-height: 1.4;
+}
+.game-flow-fx-live-start-banner strong,
+.game-flow-fx-turn-banner strong,
+.game-flow-fx-result-banner strong {
+  color: var(--flow-ink);
+  font-size: clamp(32px, 7.8vw, 76px);
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+.game-flow-fx-live-start-banner small,
+.game-flow-fx-turn-banner small,
+.game-flow-fx-result-banner small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: clamp(11px, 1.3vw, 13px);
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.game-flow-fx-live-start-banner small {
+  letter-spacing: 0.08em;
+}
+.game-flow-fx-live-start-streak,
+.game-flow-fx-turn-streak {
+  position: absolute;
+  left: -65vw;
+  top: calc(50% - 88px);
+  width: 65vw;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--flow-color), 0.5),
+    transparent
+  );
+  opacity: 0;
+  animation: flow-streak 1150ms ease-out 180ms both;
+}
+.game-flow-fx-live-start-streak.streak-two,
+.game-flow-fx-turn-streak.streak-two {
+  top: calc(50% + 88px);
+  animation-delay: 260ms;
+}
+
+/* ターン開始。背面の帯と文字は同じ色を共有し、相手の番は控えめなピンク。 */
+.game-flow-fx-turn {
+  --flow-duration: 1450ms;
+}
+.game-flow-fx-turn.is-opponent {
+  --flow-color: 181, 89, 136;
+  --flow-ink: #a33568;
+  --flow-surface: 252, 241, 247;
+}
+.game-flow-fx-turn-wash {
+  position: absolute;
+  top: calc(50% - 90px);
+  left: 0;
+  right: 0;
+  height: 180px;
+  border-block: 1px solid rgba(var(--flow-color), 0.18);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--flow-surface), 0),
+    rgba(var(--flow-surface), 0.96) 15%,
+    #fffffff7 50%,
+    rgba(var(--flow-surface), 0.96) 85%,
+    rgba(var(--flow-surface), 0)
+  );
+  box-shadow: 0 8px 30px rgba(var(--flow-color), 0.05);
+  opacity: 0;
+  animation: flow-turn-wash var(--flow-duration) ease both;
+}
+.game-flow-fx-turn-banner {
+  width: min(92vw, 680px);
+  min-height: 180px;
+  background: none;
+  gap: 7px;
+}
+.game-flow-fx-turn-banner strong {
+  font-size: clamp(29px, 6vw, 54px);
+}
+.game-flow-fx-turn.is-opponent .game-flow-fx-turn-banner strong {
+  font-size: clamp(23px, 5.1vw, 48px);
+  letter-spacing: 0.025em;
+}
+.game-flow-fx-turn-streak {
+  animation-duration: 950ms;
+  animation-delay: 100ms;
+}
+.game-flow-fx-turn-streak.streak-two {
+  animation-delay: 160ms;
+}
+
+/* 勝敗。勝利は金色を添えた紙吹雪、敗北・引き分けは静かに消える光。 */
+.game-flow-fx-result {
+  --flow-duration: 3100ms;
+  --flow-accent: 218, 178, 83;
+}
+.game-flow-fx-result.is-defeat {
+  --flow-color: 115, 141, 161;
+  --flow-accent: 168, 187, 200;
+  --flow-ink: #566c7c;
+  --flow-surface: 235, 242, 247;
+}
+.game-flow-fx-result.is-draw {
+  --flow-color: 108, 154, 172;
+  --flow-accent: 171, 201, 211;
+  --flow-ink: #4d7586;
+  --flow-surface: 239, 247, 249;
+}
+.game-flow-fx-result.is-victory .game-flow-fx-result-rays {
+  background: repeating-conic-gradient(
+    from 5deg,
+    rgba(var(--flow-accent), 0.16) 0deg 2deg,
+    transparent 2deg 20deg,
+    rgba(var(--flow-color), 0.08) 20deg 22deg,
+    transparent 22deg 40deg
+  );
+}
+.game-flow-fx-result-banner {
+  width: min(92vw, 740px);
+  min-height: 260px;
+  padding: 30px 18px;
+  gap: 12px;
+}
+.game-flow-fx-result-banner strong {
+  font-size: clamp(44px, 10vw, 100px);
+}
+.game-flow-fx-result-banner b {
+  max-width: 100%;
+  color: var(--text);
+  font-size: clamp(15px, 2.2vw, 21px);
+  font-weight: 750;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.game-flow-fx-result.is-victory .game-flow-fx-result-banner::before,
+.game-flow-fx-result.is-victory .game-flow-fx-result-banner::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--flow-accent), 0.65),
+    rgba(var(--flow-color), 0.35),
+    transparent
+  );
+}
+.game-flow-fx-result-particles i {
+  position: absolute;
+  left: var(--flow-particle-x);
+  top: -24px;
+  width: 7px;
+  height: 15px;
+  border-radius: 2px;
+  background: rgb(var(--flow-color));
+  opacity: 0;
+  animation: flow-confetti 2250ms ease-out var(--flow-particle-delay) both;
+}
+.game-flow-fx-result-particles i:nth-child(3n) {
+  width: 5px;
+  height: 12px;
+  background: rgb(var(--flow-accent));
+}
+.game-flow-fx-result-particles i:nth-child(4n) {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.game-flow-fx-result:is(.is-defeat, .is-draw) .game-flow-fx-result-rays {
+  width: min(90vw, 850px);
+  aspect-ratio: 1.5;
+  border: 1px solid rgba(var(--flow-color), 0.14);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    rgba(var(--flow-accent), 0.1),
+    transparent 70%
+  );
+  mask-image: none;
+  animation-name: flow-settle-ring;
+}
+.game-flow-fx-result:is(.is-defeat, .is-draw) .game-flow-fx-result-particles i {
+  top: 18%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(var(--flow-color), 0.5);
+  animation-name: flow-mote;
+  animation-duration: 2200ms;
+}
+.game-flow-fx-result:is(.is-defeat, .is-draw)
+  .game-flow-fx-result-particles
+  i:nth-child(2n) {
+  display: none;
+}
+
+/* 全レイヤーを同時に収束させ、旧UIの帯や影だけが残るフレームを作らない。 */
+@keyframes flow-veil {
+  0% {
+    opacity: 0;
+  }
+  20%,
+  76% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes flow-light-fade {
+  0% {
+    opacity: 0;
+  }
+  24%,
+  68% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes flow-light-sweep {
+  0% {
+    transform: translateX(-50%) rotate(var(--light-start));
+  }
+  100% {
+    transform: translateX(-50%) rotate(var(--light-end));
+  }
+}
+@keyframes flow-rays {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-5deg) scale(0.92);
+  }
+  25%,
+  68% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(7deg) scale(1.04);
+  }
+}
+@keyframes flow-ring {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  24% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+@keyframes flow-banner {
+  0%,
+  5% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 12px)) scale(0.98);
+  }
+  24%,
+  74% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 6px)) scale(1);
+  }
+}
+@keyframes flow-streak {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  20%,
+  65% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(230vw);
+  }
+}
+@keyframes flow-turn-wash {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.88);
+  }
+  22%,
+  72% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+@keyframes flow-confetti {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0) rotate(0)
+      scale(var(--flow-particle-scale));
+  }
+  18%,
+  68% {
+    opacity: 0.76;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--flow-particle-drift), 106vh, 0)
+      rotate(var(--flow-particle-spin)) scale(var(--flow-particle-scale));
+  }
+}
+@keyframes flow-settle-ring {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  28%,
+  68% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+@keyframes flow-mote {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  28%,
+  62% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--flow-particle-drift), 60vh, 0);
+  }
+}
+@media (max-width: 480px) {
+  .game-flow-fx-live-start-banner,
+  .game-flow-fx-turn-banner {
+    padding-inline: 8px;
+  }
+  .game-flow-fx-result-banner {
+    min-height: 230px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-flow-fx-layer {
+    display: none;
+  }
+}

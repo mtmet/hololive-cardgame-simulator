@@ -1,0 +1,305 @@
+/* 白い盤面に馴染むサイコロ。時間は engine/animation.ts からCSS変数で受け取る。 */
+.dice-fx {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  opacity: 0;
+  animation:
+    dice-fx-enter 160ms ease-out var(--dice-delay) both,
+    dice-fx-exit var(--dice-exit-time) ease-in var(--dice-exit-delay) forwards;
+}
+.dice-fx[data-phase="queued"] {
+  visibility: hidden;
+}
+.dice-fx-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(246 250 252 / 55%);
+  backdrop-filter: blur(1px);
+}
+.dice-fx-panel {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  width: min(100%, 590px);
+  max-height: calc(100svh - 32px);
+  padding: 22px 18px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow-dialog);
+  text-align: center;
+}
+.dice-fx-panel header {
+  display: grid;
+  gap: 5px;
+}
+.dice-fx-owner {
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+.dice-fx-panel header strong {
+  font-size: 17px;
+}
+.dice-fx-source {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.dice-fx-grid {
+  --die-size: min(
+    56px,
+    calc((82vw - (var(--dice-columns) - 1) * 12px - 40px) / var(--dice-columns))
+  );
+  display: grid;
+  grid-template-columns: repeat(var(--dice-columns), minmax(0, 1fr));
+  justify-self: center;
+  gap: 14px 12px;
+  max-width: 100%;
+  max-height: calc(100svh - 200px);
+  padding: 28px 20px 9px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+.dice-fx-item {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  min-width: var(--die-size);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.dice-fx-caption {
+  min-height: 14px;
+  color: var(--muted);
+}
+.dice-fx-perspective {
+  position: relative;
+  width: var(--die-size);
+  height: var(--die-size);
+  margin-bottom: 8px;
+  perspective: 500px;
+  perspective-origin: 50% 40%;
+}
+.dice-fx-toss,
+.dice-fx-cube {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.dice-fx-toss {
+  animation: dice-fx-toss var(--dice-roll-time) cubic-bezier(0.2, 0.7, 0.3, 1)
+    calc(var(--dice-delay) + var(--die-delay)) both;
+}
+.dice-fx-cube {
+  transform: rotateX(var(--die-x)) rotateY(var(--die-y));
+  animation: dice-fx-roll var(--dice-roll-time)
+    cubic-bezier(0.22, 0.61, 0.36, 1) calc(var(--dice-delay) + var(--die-delay))
+    both;
+}
+.dice-fx-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  padding: 12%;
+  backface-visibility: hidden;
+  border: 1px solid #b6ccd8;
+  border-radius: 12%;
+  background: linear-gradient(145deg, #fff, #eef5f9);
+  box-shadow: inset 0 0 5px #b3ced540;
+}
+.dice-fx-face-1 {
+  transform: translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face-2 {
+  transform: rotateY(90deg) translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face-3 {
+  transform: rotateX(90deg) translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face-4 {
+  transform: rotateX(-90deg) translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face-5 {
+  transform: rotateY(-90deg) translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face-6 {
+  transform: rotateY(180deg) translateZ(calc(var(--die-size) / 2));
+}
+.dice-fx-face i {
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--text);
+  visibility: hidden;
+}
+.dice-fx-face i.is-active {
+  visibility: visible;
+}
+.dice-fx-face-1 i {
+  background: var(--danger);
+}
+.dice-fx-shadow {
+  position: absolute;
+  bottom: -8px;
+  left: 5%;
+  width: 90%;
+  height: 12%;
+  border-radius: 50%;
+  background: #244e6630;
+  filter: blur(3px);
+  animation: dice-fx-shadow var(--dice-roll-time) linear
+    calc(var(--dice-delay) + var(--die-delay)) both;
+}
+.dice-fx-number {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 12%;
+  background: var(--panel2);
+  font-size: 24px;
+  font-weight: 800;
+}
+.dice-fx-value,
+.dice-fx-modified,
+.dice-fx-summary {
+  visibility: hidden;
+}
+.dice-fx[data-phase="result"]
+  :is(.dice-fx-value, .dice-fx-modified, .dice-fx-summary) {
+  visibility: visible;
+}
+.dice-fx-value strong {
+  font-size: 16px;
+}
+.dice-fx-value,
+.dice-fx-modified {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.35;
+}
+.dice-fx :is(.dice-fx-value, .dice-fx-modified, .dice-fx-summary) strong {
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dice-fx-modified {
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: var(--panel3);
+  color: var(--accent-strong);
+}
+.dice-fx-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.dice-fx-summary p {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+.dice-fx-summary-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.dice-fx-summary strong {
+  color: var(--accent-strong);
+  font-size: 21px;
+}
+.dice-fx.is-reduced {
+  opacity: 1;
+  animation: none;
+}
+.dice-fx.is-reduced :is(.dice-fx-toss, .dice-fx-cube, .dice-fx-shadow) {
+  animation: none;
+}
+@keyframes dice-fx-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dice-fx-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dice-fx-toss {
+  0% {
+    transform: translateY(-24px) scale(0.8);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes dice-fx-roll {
+  from {
+    transform: rotateX(calc(var(--die-x) - 720deg))
+      rotateY(calc(var(--die-y) - 540deg * var(--die-direction)))
+      rotateZ(-24deg);
+  }
+  to {
+    transform: rotateX(var(--die-x)) rotateY(var(--die-y)) rotateZ(0);
+  }
+}
+@keyframes dice-fx-shadow {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (max-height: 500px) {
+  .dice-fx-panel {
+    gap: 10px;
+    padding-block: 14px;
+  }
+  .dice-fx-grid {
+    --die-size: min(
+      44px,
+      calc(
+        (82vw - (var(--dice-columns) - 1) * 12px - 40px) / var(--dice-columns)
+      )
+    );
+  }
+}
+@media (max-width: 480px) {
+  .dice-fx-grid {
+    --dice-columns: 3;
+  }
+  .dice-fx[data-count="1"] .dice-fx-grid {
+    --dice-columns: 1;
+  }
+  .dice-fx[data-count="2"] .dice-fx-grid {
+    --dice-columns: 2;
+  }
+}

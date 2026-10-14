@@ -1,0 +1,108 @@
+// 公開API。実装は役割別モジュールへ配置し、呼び出し元の参照先を維持する。
+export {
+  setEngineObserver,
+  observeGameAction,
+  withGameRandomSource,
+} from "./engine/runtime";
+export type {
+  EngineObserver,
+  GiftAbilityRef,
+  GiftAbilityOption,
+} from "./engine/types";
+export {
+  cardOf,
+  holomenOf,
+  topCard,
+  getStack,
+  allStacks,
+  stageCount,
+  findStackById,
+  posLabel,
+} from "./engine/state";
+export { setAnimationWaitsEnabled } from "./engine/animation";
+export {
+  advance,
+  resolveChooseCenter,
+  resolveCheerAssign,
+  goPerformance,
+  endTurn,
+  canBloom,
+  canBloomOnto,
+  canBatonTouch,
+  attachError,
+  canPlaySupport,
+  canAttachSupportFromHand,
+  canUseOshiSkill,
+  giftAbilityOptions,
+  usableGiftAbilities,
+  usableArts,
+  legalArtTargets,
+  canUseArt,
+  resolveReactiveSkill,
+  incomingDamageInfo,
+  runOps,
+  effectAttachTargetError,
+  checkDowns,
+  resolveRuleAbilityChoice,
+  resolveRuleDownChoice,
+} from "./engine/resolution";
+export {
+  passiveOf,
+  giftOf,
+  effectiveMaxHp,
+  artBonusOf,
+  damageTakenDeltaOf,
+  isDamageImmune,
+  isSpecialImmune,
+  isArtImmune,
+  batonCostOf,
+  availableArts,
+  stackColors,
+  stackRealColors,
+  hasNoSwitch,
+  stackBloomLevels,
+  cardMatchesFilter,
+  evalCond,
+  targetCandidates,
+} from "./engine/conditions";
+export {
+  createGame,
+  mulliganRequired,
+  resolveMulligan,
+  resolvePlaceCenter,
+  resolveMulliganPenalty,
+  resolvePlaceBackOne,
+  resolvePlaceBackDone,
+  resolveLiveStart,
+  resolveSetupReveal,
+} from "./engine/setup";
+export {
+  cheerAssignCandidates,
+  canPayArtCost,
+  artCostCheck,
+} from "./engine/costs";
+export {
+  playHolomen,
+  bloom,
+  collab,
+  batonTouch,
+  playSupport,
+  useOshiSkill,
+  useGiftAbility,
+  useArts,
+  concede,
+} from "./engine/actions";
+export {
+  resolveTriggerAbilityChoice,
+  resolveDamageReplacementChoice,
+  resolveEffectTarget,
+  effectPickCardSelectionError,
+  resolveEffectPickCard,
+  resolveEffectAttach,
+  resolveAnimationDelay,
+  resolveDeclareDice,
+  resolveJankenHand,
+  effectArchiveHandSelectionError,
+  resolveEffectArchiveHand,
+  resolveEffectConfirm,
+} from "./engine/prompts";

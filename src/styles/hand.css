@@ -1,0 +1,67 @@
+/* ---------------- 手札 ---------------- */
+.hand-area {
+  border-top: 1px solid var(--border);
+}
+.prompt-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.prompt-bar.idle {
+  font-weight: normal;
+}
+.incoming-damage-notice {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.incoming-damage-notice strong {
+  color: var(--accent);
+}
+.turn-advance-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.hand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+}
+.hand-label {
+  color: var(--muted);
+  font-size: 12px;
+  width: 110px;
+}
+.hand-cards {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  overflow-x: auto;
+  padding: 6px;
+}
+.hand-cards .card {
+  transition:
+    transform 180ms ease,
+    opacity 220ms ease,
+    filter 220ms ease;
+}
+.hand-cards .card img {
+  filter: drop-shadow(0 3px 4px rgb(36 61 81 / 22%));
+}
+.hand-cards .card-clickable:hover:not(.card-selected) {
+  box-shadow: none;
+}
+.hand-cards .card-draw-pending {
+  transition: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.94);
+  filter: brightness(1.35);
+}

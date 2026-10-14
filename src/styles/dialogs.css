@@ -1,0 +1,27 @@
+/* ---------------- 汎用 ---------------- */
+.toast {
+  position: fixed;
+  bottom: 180px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 8px;
+  z-index: 300;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.overlay-box {
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 48px;
+  text-align: center;
+}
+.card-dimmed {
+  opacity: 0.35;
+}

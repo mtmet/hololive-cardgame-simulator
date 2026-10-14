@@ -1,0 +1,42 @@
+/* レイアウトとカード演出。画面共通の配色は theme.css に定義する。 */
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --card-sm-width: 52px;
+  --card-sm-height: 73px;
+  --card-md-width: 78px;
+  --card-md-height: 109px;
+  --stack-yell-gap: 4px;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  font-size: 14px;
+}
+
+button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button.primary {
+  font-weight: bold;
+}
+
+input,
+select {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}

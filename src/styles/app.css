@@ -1,0 +1,18 @@
+/* レイアウトと演出の読み込み口。既存のカスケード順を保つ。 */
+@import "./base.css";
+@import "./cards.css";
+@import "./lobby.css";
+@import "./decks.css";
+@import "./board.css";
+@import "./hand.css";
+@import "./effects/draw.css";
+@import "./effects/card-action.css";
+@import "./effects/state-change.css";
+@import "./effects/resolution.css";
+@import "./effects/oshi-skill.css";
+@import "./effects/combat.css";
+@import "./dialogs.css";
+@import "./layout.css";
+@import "./lobby-layout.css";
+@import "./online.css";
+@import "./screen-layout.css";

@@ -1,0 +1,340 @@
+/* ---------------- 推しスキル演出 ---------------- */
+.oshi-skill-fx-layer {
+  position: fixed;
+  z-index: 220;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.oshi-skill-fx-effect {
+  --oshi-color: 63, 205, 239;
+  --oshi-color-hot: 214, 250, 255;
+  --oshi-accent: 55, 127, 210;
+}
+.oshi-skill-fx-effect.is-sp {
+  --oshi-color: 255, 190, 70;
+  --oshi-color-hot: 255, 244, 188;
+  --oshi-accent: 203, 82, 199;
+}
+.oshi-skill-fx-veil {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at var(--oshi-x) var(--oshi-y),
+      rgba(var(--oshi-color), 0.24),
+      transparent min(42vw, 430px)
+    ),
+    linear-gradient(
+      110deg,
+      transparent 20%,
+      rgba(var(--oshi-accent), 0.08) 48%,
+      transparent 76%
+    );
+  opacity: 0;
+  animation: oshi-skill-fx-veil var(--oshi-duration) ease-out var(--oshi-delay)
+    both;
+}
+.oshi-skill-fx-effect.is-sp .oshi-skill-fx-veil {
+  background:
+    radial-gradient(
+      circle at var(--oshi-x) var(--oshi-y),
+      rgba(var(--oshi-color), 0.31),
+      transparent min(48vw, 490px)
+    ),
+    linear-gradient(
+      110deg,
+      transparent 13%,
+      rgba(var(--oshi-accent), 0.13) 48%,
+      transparent 83%
+    );
+}
+.oshi-skill-fx-source-aura {
+  position: fixed;
+  left: calc(var(--oshi-left) - 14px);
+  top: calc(var(--oshi-top) - 14px);
+  width: calc(var(--oshi-width) + 28px);
+  height: calc(var(--oshi-height) + 28px);
+  border: 1px solid rgba(var(--oshi-color-hot), 0.78);
+  border-radius: 14px;
+  background: radial-gradient(
+    ellipse,
+    rgba(var(--oshi-color-hot), 0.28),
+    rgba(var(--oshi-color), 0.12) 45%,
+    transparent 72%
+  );
+  box-shadow:
+    0 0 20px rgba(var(--oshi-color), 0.68),
+    0 0 48px rgba(var(--oshi-accent), 0.34),
+    inset 0 0 16px rgba(var(--oshi-color-hot), 0.32);
+  opacity: 0;
+  animation: oshi-skill-fx-aura var(--oshi-duration)
+    cubic-bezier(0.16, 0.76, 0.25, 1) var(--oshi-delay) both;
+}
+.oshi-skill-fx-effect.is-sp .oshi-skill-fx-source-aura {
+  border-width: 2px;
+  box-shadow:
+    0 0 24px rgba(var(--oshi-color), 0.78),
+    0 0 62px rgba(var(--oshi-accent), 0.48),
+    inset 0 0 22px rgba(var(--oshi-color-hot), 0.38);
+}
+.oshi-skill-fx-source-ring {
+  position: fixed;
+  left: var(--oshi-x);
+  top: var(--oshi-y);
+  width: calc(var(--oshi-width) + 16px);
+  height: calc(var(--oshi-height) + 16px);
+  border: 2px solid rgba(var(--oshi-color-hot), 0.82);
+  border-radius: 16px;
+  box-shadow: 0 0 12px rgba(var(--oshi-color), 0.72);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: oshi-skill-fx-ring 900ms ease-out var(--oshi-delay) both;
+}
+.oshi-skill-fx-source-ring.ring-two {
+  border-color: rgba(var(--oshi-accent), 0.66);
+  animation-delay: calc(var(--oshi-delay) + 120ms);
+}
+.oshi-skill-fx-card {
+  position: fixed;
+  left: var(--oshi-left);
+  top: var(--oshi-top);
+  width: var(--oshi-width);
+  height: var(--oshi-height);
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow:
+    0 10px 26px rgba(3, 10, 25, 0.42),
+    0 0 18px rgba(var(--oshi-color), 0.58);
+  opacity: 0;
+  transform-origin: center;
+  animation: oshi-skill-fx-card var(--oshi-duration)
+    cubic-bezier(0.16, 0.8, 0.2, 1) var(--oshi-delay) both;
+}
+.oshi-skill-fx-effect.is-sp .oshi-skill-fx-card {
+  box-shadow:
+    0 12px 30px rgba(3, 10, 25, 0.48),
+    0 0 22px rgba(var(--oshi-color), 0.72),
+    0 0 38px rgba(var(--oshi-accent), 0.36);
+}
+.oshi-skill-fx-particles {
+  position: fixed;
+  left: var(--oshi-x);
+  top: var(--oshi-y);
+  width: 0;
+  height: 0;
+}
+.oshi-skill-fx-particles i {
+  --oshi-particle-angle: 0deg;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    transparent,
+    rgba(var(--oshi-color-hot), 0.96)
+  );
+  box-shadow: 0 0 8px rgba(var(--oshi-color), 0.82);
+  opacity: 0;
+  transform-origin: center bottom;
+  animation: oshi-skill-fx-particle 880ms ease-out
+    calc(var(--oshi-delay) + 120ms) both;
+}
+.oshi-skill-fx-particles i:nth-child(2) {
+  --oshi-particle-angle: 45deg;
+  animation-delay: calc(var(--oshi-delay) + 150ms);
+}
+.oshi-skill-fx-particles i:nth-child(3) {
+  --oshi-particle-angle: 90deg;
+  animation-delay: calc(var(--oshi-delay) + 90ms);
+}
+.oshi-skill-fx-particles i:nth-child(4) {
+  --oshi-particle-angle: 135deg;
+  animation-delay: calc(var(--oshi-delay) + 180ms);
+}
+.oshi-skill-fx-particles i:nth-child(5) {
+  --oshi-particle-angle: 180deg;
+  animation-delay: calc(var(--oshi-delay) + 110ms);
+}
+.oshi-skill-fx-particles i:nth-child(6) {
+  --oshi-particle-angle: 225deg;
+  animation-delay: calc(var(--oshi-delay) + 170ms);
+}
+.oshi-skill-fx-particles i:nth-child(7) {
+  --oshi-particle-angle: 270deg;
+  animation-delay: calc(var(--oshi-delay) + 130ms);
+}
+.oshi-skill-fx-particles i:nth-child(8) {
+  --oshi-particle-angle: 315deg;
+  animation-delay: calc(var(--oshi-delay) + 200ms);
+}
+.oshi-skill-fx-particles i:nth-child(9) {
+  --oshi-particle-angle: 22deg;
+  animation-delay: calc(var(--oshi-delay) + 230ms);
+}
+.oshi-skill-fx-particles i:nth-child(10) {
+  --oshi-particle-angle: 112deg;
+  animation-delay: calc(var(--oshi-delay) + 250ms);
+}
+.oshi-skill-fx-particles i:nth-child(11) {
+  --oshi-particle-angle: 202deg;
+  animation-delay: calc(var(--oshi-delay) + 220ms);
+}
+.oshi-skill-fx-particles i:nth-child(12) {
+  --oshi-particle-angle: 292deg;
+  animation-delay: calc(var(--oshi-delay) + 270ms);
+}
+.oshi-skill-fx-banner {
+  position: fixed;
+  left: 50%;
+  top: clamp(90px, 32vh, 300px);
+  display: grid;
+  width: min(86vw, 520px);
+  min-height: 68px;
+  align-content: center;
+  padding: 10px 34px 12px;
+  overflow: hidden;
+  border-block: 1px solid rgba(var(--oshi-color-hot), 0.7);
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, 10px) scaleX(0.72);
+  animation: oshi-skill-fx-banner var(--oshi-duration)
+    cubic-bezier(0.18, 0.78, 0.2, 1) calc(var(--oshi-delay) + 160ms) both;
+}
+.oshi-skill-fx-banner::before,
+.oshi-skill-fx-banner::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 26%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--oshi-color), 0.88)
+  );
+}
+.oshi-skill-fx-banner::before {
+  left: 0;
+}
+.oshi-skill-fx-banner::after {
+  right: 0;
+  transform: rotate(180deg);
+}
+.oshi-skill-fx-banner span {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  line-height: 1.2;
+}
+.oshi-skill-fx-banner strong {
+  display: block;
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: clamp(15px, 2.2vw, 23px);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes oshi-skill-fx-veil {
+  0%,
+  12% {
+    opacity: 0;
+  }
+  28%,
+  64% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes oshi-skill-fx-aura {
+  0% {
+    opacity: 0;
+    transform: scale(0.76);
+  }
+  24%,
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+@keyframes oshi-skill-fx-ring {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  24% {
+    opacity: 0.92;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.48);
+  }
+}
+@keyframes oshi-skill-fx-card {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.96);
+    filter: brightness(1);
+  }
+  18% {
+    opacity: 1;
+  }
+  36%,
+  63% {
+    opacity: 1;
+    transform: translateY(-12px) scale(1.12);
+    filter: brightness(1.12) saturate(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-17px) scale(1.08);
+    filter: brightness(1);
+  }
+}
+@keyframes oshi-skill-fx-particle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -100%) rotate(var(--oshi-particle-angle))
+      translateY(-30px) scaleY(0.25);
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -100%) rotate(var(--oshi-particle-angle))
+      translateY(-112px) scaleY(1);
+  }
+}
+@keyframes oshi-skill-fx-banner {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scaleX(0.72);
+    clip-path: inset(0 48%);
+  }
+  24%,
+  70% {
+    opacity: 1;
+    transform: translate(-50%, 0) scaleX(1);
+    clip-path: inset(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -7px) scaleX(1);
+    clip-path: inset(0 8%);
+  }
+}

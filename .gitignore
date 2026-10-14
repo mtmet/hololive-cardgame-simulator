@@ -1,0 +1,7 @@
+/data/
+/dist/
+/node_modules/
+/.data-fetch-*/
+/.data-previous-*/
+__pycache__/
+*.pyc

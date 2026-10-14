@@ -1,0 +1,245 @@
+/* ---------------- ドロー演出 ---------------- */
+.draw-fx-layer {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.draw-fx-flight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--draw-card-width);
+  height: var(--draw-card-height);
+  opacity: 0;
+  perspective: 800px;
+  will-change: transform, opacity;
+  animation: draw-fx-flight var(--draw-duration, 980ms)
+    cubic-bezier(0.2, 0.78, 0.24, 1) var(--draw-delay) both;
+}
+.draw-fx-flight.is-return {
+  animation-name: draw-fx-return-flight;
+  animation-fill-mode: forwards;
+}
+.draw-fx-flight::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -22px;
+  border: 1px solid rgba(108, 224, 255, 0.72);
+  border-radius: 18px;
+  background: radial-gradient(
+    circle,
+    rgba(111, 225, 255, 0.42),
+    rgba(73, 143, 255, 0.12) 46%,
+    transparent 70%
+  );
+  box-shadow: 0 0 34px rgba(76, 205, 255, 0.52);
+  animation: draw-fx-aura var(--draw-duration, 980ms) ease-out var(--draw-delay)
+    both;
+}
+.draw-fx-flight.is-opponent::before {
+  border-color: rgba(255, 117, 190, 0.68);
+  background: radial-gradient(
+    circle,
+    rgba(255, 105, 186, 0.34),
+    rgba(154, 78, 204, 0.12) 46%,
+    transparent 70%
+  );
+  box-shadow: 0 0 34px rgba(249, 95, 180, 0.42);
+}
+.draw-fx-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: draw-fx-reveal var(--draw-duration, 980ms)
+    cubic-bezier(0.3, 0.7, 0.25, 1) var(--draw-delay) both;
+}
+.draw-fx-flight.is-opponent .draw-fx-card {
+  animation-name: draw-fx-concealed;
+}
+.draw-fx-flight.is-return .draw-fx-card {
+  animation-name: draw-fx-conceal;
+}
+.draw-fx-flight.is-return.is-opponent .draw-fx-card {
+  animation-name: draw-fx-concealed;
+}
+.draw-fx-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  backface-visibility: hidden;
+}
+.draw-fx-face > .card {
+  width: 100%;
+  height: 100%;
+}
+.draw-fx-front {
+  transform: rotateY(180deg);
+}
+.draw-fx-streak {
+  position: absolute;
+  z-index: -2;
+  top: 50%;
+  right: 60%;
+  width: 130px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(111, 225, 255, 0.78));
+  filter: blur(1px);
+  transform: translateY(-50%);
+  animation: draw-fx-streak var(--draw-duration, 980ms) ease var(--draw-delay)
+    both;
+}
+.draw-fx-flight.is-return .draw-fx-streak {
+  right: auto;
+  left: 60%;
+  transform: translateY(-50%) rotate(180deg);
+}
+.is-opponent .draw-fx-streak {
+  background: linear-gradient(90deg, transparent, rgba(255, 116, 190, 0.7));
+}
+.draw-fx-label {
+  position: absolute;
+  top: -29px;
+  left: 50%;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: draw-fx-label var(--draw-duration, 980ms) ease var(--draw-delay)
+    both;
+}
+.is-opponent .draw-fx-label {
+  border-color: rgba(255, 157, 210, 0.52);
+}
+@keyframes draw-fx-flight {
+  0% {
+    opacity: var(--draw-start-opacity, 0);
+    transform: translate3d(var(--draw-start-x), var(--draw-start-y), 0)
+      scale(0.72) rotate(-7deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  52% {
+    opacity: 1;
+    transform: translate3d(var(--draw-control-x), var(--draw-control-y), 0)
+      scale(1.14) rotate(4deg);
+  }
+  83% {
+    opacity: 1;
+    transform: translate3d(var(--draw-end-x), calc(var(--draw-end-y) - 10px), 0)
+      scale(1.04) rotate(-1deg);
+  }
+  100% {
+    opacity: var(--draw-end-opacity, 0);
+    transform: translate3d(var(--draw-end-x), var(--draw-end-y), 0) scale(1)
+      rotate(0);
+  }
+}
+@keyframes draw-fx-return-flight {
+  0% {
+    opacity: 1;
+    transform: translate3d(var(--draw-start-x), var(--draw-start-y), 0) scale(1)
+      rotate(0);
+  }
+  48% {
+    opacity: 1;
+    transform: translate3d(var(--draw-control-x), var(--draw-control-y), 0)
+      scale(1.04) rotate(-3deg);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--draw-end-x), var(--draw-end-y), 0) scale(0.72)
+      rotate(7deg);
+  }
+}
+@keyframes draw-fx-reveal {
+  0%,
+  42% {
+    transform: rotateY(0deg);
+  }
+  66%,
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+@keyframes draw-fx-conceal {
+  0%,
+  38% {
+    transform: rotateY(180deg);
+  }
+  64%,
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+@keyframes draw-fx-concealed {
+  0% {
+    transform: rotateY(0deg) scale(0.96);
+  }
+  55% {
+    transform: rotateY(0deg) scale(1.04);
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+@keyframes draw-fx-aura {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-8deg);
+  }
+  42% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) rotate(8deg);
+  }
+}
+@keyframes draw-fx-streak {
+  0%,
+  16% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.2);
+    transform-origin: right center;
+  }
+  48% {
+    opacity: 0.9;
+    transform: translateY(-50%) scaleX(1);
+    transform-origin: right center;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.35);
+    transform-origin: right center;
+  }
+}
+@keyframes draw-fx-label {
+  0%,
+  24% {
+    opacity: 0;
+    transform: translate(-50%, 7px) scale(0.84);
+  }
+  48%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4px) scale(0.96);
+  }
+}

@@ -1,0 +1,3352 @@
+/* Deck builder */
+.app-loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-loading-panel {
+  min-width: min(360px, 100%);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  text-align: center;
+}
+
+.app-loading-panel p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+/* カード画像の先読み進捗 (ui/CardImagePreload.tsx) */
+.preload-bar {
+  margin-top: 14px;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.preload-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+
+/* 最上位エラーバウンダリ (ui/ErrorBoundary.tsx) */
+.app-error {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-error-panel {
+  min-width: min(360px, 100%);
+  max-width: 520px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  text-align: center;
+}
+
+.app-error-panel h1 {
+  margin: 10px 0 0;
+  font-size: 20px;
+}
+
+.app-error-panel p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.app-error-detail {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.app-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+/* 勝敗オーバーレイのボタン行 (リマッチ+退出) */
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.deck-builder {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.db-header {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(210px, 280px) minmax(420px, 1fr) auto;
+  gap: 18px;
+  min-height: 76px;
+  padding: 12px 18px;
+  border-color: var(--border);
+  backdrop-filter: blur(18px);
+}
+
+.db-name-field {
+  display: grid;
+  gap: 4px;
+}
+
+.db-name-field > span,
+.db-filter-controls label > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.db-name-field input {
+  width: 100%;
+  min-height: 38px;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.db-metrics {
+  display: grid;
+  grid-template-columns: 100px 100px minmax(180px, 1fr);
+  gap: 8px;
+}
+
+.db-metric {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+
+.db-metric > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.db-metric strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-metric strong small {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.db-metric-oshi strong {
+  font-size: 13px;
+}
+
+.db-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-errors {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.db-errors strong {
+  flex: 0 0 auto;
+}
+
+.db-mobile-validation {
+  display: none;
+}
+
+.db-mobile-switch {
+  display: none;
+}
+
+.db-filters {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.db-tabs {
+  display: flex;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.db-tabs button {
+  min-height: 34px;
+  padding: 6px 13px;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.db-filter-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.db-filter-controls label {
+  display: grid;
+  gap: 3px;
+}
+
+.db-filter-controls select,
+.db-filter-controls input {
+  min-height: 36px;
+}
+
+.db-search-field input {
+  width: min(230px, 24vw);
+}
+
+.db-count {
+  min-width: 56px;
+  align-self: flex-end;
+  padding: 9px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.db-cards {
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: 13px;
+  padding: 16px 18px 30px;
+}
+
+.db-card {
+  position: relative;
+  min-width: 0;
+  gap: 5px;
+  padding: 10px 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.db-card:hover {
+  transform: translateY(-2px);
+}
+
+.db-card-visual {
+  position: relative;
+}
+
+.db-card-zoom {
+  position: absolute;
+  z-index: 14;
+  right: 6px;
+  bottom: 6px;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  backdrop-filter: blur(8px);
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.db-card-zoom:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.db-card-zoom:focus-visible {
+  outline-offset: 2px;
+}
+
+.db-card-zoom svg {
+  width: 17px;
+  height: 17px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.hand-card-visual {
+  position: relative;
+}
+
+.hand-card-visual {
+  flex: 0 0 auto;
+}
+
+.game-screen .stage-card-zoom,
+.game-screen .hand-card-zoom {
+  z-index: 22;
+  top: auto;
+  right: 4px;
+  bottom: 4px;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  opacity: 0.9;
+}
+
+.game-screen .stage-card-zoom:hover,
+.game-screen .stage-card-zoom:focus-visible,
+.game-screen .hand-card-zoom:hover,
+.game-screen .hand-card-zoom:focus-visible {
+  opacity: 1;
+}
+
+.game-screen .stage-card-zoom svg,
+.game-screen .hand-card-zoom svg {
+  width: 15px;
+  height: 15px;
+}
+
+.db-card .card {
+  width: 104px;
+  height: 146px;
+  border-radius: 8px;
+  filter: drop-shadow(0 3px 5px rgba(36, 61, 81, 0.24));
+}
+
+.db-card .card img {
+  filter: none;
+}
+
+.db-card .card-clickable:hover {
+  box-shadow: none;
+}
+
+.db-card-quantity {
+  position: absolute;
+  z-index: 15;
+  right: -8px;
+  bottom: -6px;
+  min-width: 32px;
+  height: 25px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 7px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  box-shadow: 0 5px 15px rgba(12, 130, 172, 0.32);
+}
+
+.db-card-name {
+  width: 100%;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-card-id {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.db-empty {
+  grid-column: 1 / -1;
+  padding: 48px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.db-list {
+  width: 350px;
+  padding: 18px;
+  border-color: var(--border);
+}
+
+.db-list-header {
+  position: sticky;
+  z-index: 3;
+  top: -18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -18px -18px 14px;
+  padding: 17px 18px 13px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.db-list-header h2 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.db-list-total {
+  min-width: 48px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.db-list-section {
+  margin-top: 15px;
+}
+
+.db-list h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.db-list h3 span {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.db-row {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  justify-content: stretch;
+  gap: 9px;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-color: transparent;
+  border-radius: 9px;
+  box-shadow: none;
+  font-size: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.db-row:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  transform: none;
+}
+
+/* 行の背景にカード画像の一部を薄く敷いて、どのカードか分かるようにする */
+.db-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.db-row-adjustable {
+  padding-right: 78px;
+  padding-left: 8px;
+  cursor: default;
+}
+
+.db-row::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  /* 右側のアート帯。行いっぱいに引き伸ばさず cover で収めて解像感を保つ */
+  inset: 0 0 0 42%;
+  background-image: var(--db-row-art, none);
+  /* 右端を少しトリミングして、カード左側がより見えるように左寄せする */
+  background-position: left 0 top 26%;
+  background-repeat: no-repeat;
+  background-size: 118% auto;
+  opacity: 0.5;
+  /* 左に向かってなだらかに消えるようにして文字の可読性を保つ */
+  mask-image: linear-gradient(
+    to left,
+    #000 0%,
+    rgba(0, 0, 0, 0.92) 18%,
+    rgba(0, 0, 0, 0.7) 38%,
+    rgba(0, 0, 0, 0.42) 58%,
+    rgba(0, 0, 0, 0.18) 76%,
+    rgba(0, 0, 0, 0.05) 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to left,
+    #000 0%,
+    rgba(0, 0, 0, 0.92) 18%,
+    rgba(0, 0, 0, 0.7) 38%,
+    rgba(0, 0, 0, 0.42) 58%,
+    rgba(0, 0, 0, 0.18) 76%,
+    rgba(0, 0, 0, 0.05) 90%,
+    transparent 100%
+  );
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.db-row:hover:not(:disabled)::before {
+  opacity: 0.72;
+}
+
+.db-row-count-controls {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 7px;
+  display: flex;
+  gap: 6px;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.db-row-adjustable:hover .db-row-count-controls,
+.db-row-adjustable:focus-within .db-row-count-controls {
+  opacity: 1;
+}
+
+.db-row-count-controls .db-count-step {
+  position: relative;
+  inset: auto;
+  width: 28px;
+  height: 28px;
+  transform: none;
+}
+
+.db-row-count-controls .db-count-step.is-minus,
+.db-row-count-controls .db-count-step.is-plus {
+  right: auto;
+  left: auto;
+}
+
+.db-row-count {
+  min-width: 30px;
+  height: 27px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--panel3);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.db-row-oshi .db-row-count {
+  background: #fff0f6;
+}
+
+.db-row-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-row-name small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.db-empty-row {
+  margin: 0;
+  padding: 10px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.db-hint {
+  margin: 18px 0 2px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  line-height: 1.6;
+}
+
+.db-card-preview {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  animation: db-card-preview-backdrop-in 220ms ease-out both;
+}
+
+.db-card-preview.is-closing {
+  animation: db-card-preview-backdrop-out 220ms ease-in both;
+}
+
+dialog.db-artwork-preview {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
+}
+
+dialog.db-artwork-preview:not([open]) {
+  display: none;
+}
+
+.db-card-preview-dialog {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  animation: db-card-preview-card-in 260ms cubic-bezier(0.16, 0.82, 0.2, 1) both;
+}
+
+.db-card-preview.is-closing .db-card-preview-dialog {
+  animation: db-card-preview-card-out 190ms ease-in both;
+}
+
+.db-artwork-picker {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 24px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  overflow-y: auto;
+}
+
+.db-artwork-picker[open] {
+  display: grid;
+  place-items: center;
+}
+
+.db-artwork-picker::backdrop {
+  backdrop-filter: blur(14px);
+}
+
+.db-artwork-picker-dialog {
+  position: relative;
+  width: min(1080px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  animation: db-card-preview-card-in 260ms cubic-bezier(0.16, 0.82, 0.2, 1) both;
+}
+
+.db-artwork-picker-header {
+  padding-right: 46px;
+}
+
+.db-artwork-picker-header h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.db-artwork-picker-header p {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.db-artwork-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  min-height: 0;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 0 4px 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.db-artwork-option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.db-artwork-card-shell {
+  position: relative;
+  width: min(100%, 190px);
+}
+
+.db-artwork-card-shell > .db-card-zoom {
+  top: auto;
+  bottom: 6px;
+}
+
+.db-artwork-option .card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 78 / 109;
+  pointer-events: none;
+}
+
+.db-artwork-count-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 190px);
+}
+
+.db-artwork-count-controls .db-count-step {
+  position: static;
+}
+
+.db-count-step {
+  position: absolute;
+  bottom: 8px;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  transition:
+    transform 130ms ease,
+    border-color 130ms ease,
+    background 130ms ease,
+    opacity 130ms ease;
+}
+
+.db-count-step.is-minus {
+  left: 8px;
+}
+
+.db-count-step.is-plus {
+  right: 8px;
+}
+
+.db-count-step:hover:not(:disabled),
+.db-count-step:focus-visible {
+  outline: none;
+}
+
+.db-count-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.db-count-step > span {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  display: block;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+.db-count-step > span::before,
+.db-count-step > span::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.db-count-step.is-minus > span::after {
+  display: none;
+}
+
+.db-count-step.is-plus > span::after {
+  width: 2px;
+  height: 12px;
+}
+
+.db-artwork-option-label {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 22px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.db-artwork-option-label strong {
+  display: inline-grid;
+  min-width: 30px;
+  min-height: 22px;
+  place-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.db-artwork-option-label strong.is-empty {
+  display: none;
+}
+
+.db-artwork-picker-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin: 20px -24px -24px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 20px 20px;
+  font-size: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.db-artwork-picker-footer strong {
+  margin: 0 3px;
+}
+
+.db-artwork-picker-footer button {
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.db-card-preview-card.card {
+  width: min(74vw, 390px, calc((100dvh - 150px) * 0.7156));
+  height: auto;
+  aspect-ratio: 78 / 109;
+  border-radius: 13px;
+}
+
+.db-card-preview-card.card img {
+  border-radius: inherit;
+}
+
+.db-card-preview-meta {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.db-card-preview-meta strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.db-card-preview-meta span {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.card-preview-dialog-with-details {
+  width: min(94vw, 920px);
+  max-height: 92dvh;
+  overflow-y: auto;
+  justify-items: stretch;
+}
+
+.card-preview-body {
+  display: grid;
+  grid-template-columns: minmax(250px, 360px) minmax(260px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.card-preview-dialog-with-details .db-card-preview-card.card {
+  width: min(100%, 360px, calc((92dvh - 112px) * 0.7156));
+  justify-self: center;
+}
+
+.card-preview-details {
+  min-width: 0;
+  padding: 8px 4px;
+}
+
+.card-preview-details .card-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.card-preview-details .card-title {
+  font-size: 16px;
+}
+
+.card-preview-attachments {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.card-preview-attachments h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.card-preview-attached {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.card-preview-attached .card-title {
+  font-size: 13px;
+}
+
+.card-preview-dialog-with-details > .db-card-preview-meta {
+  margin-top: 2px;
+}
+.game-screen .card-preview-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 36px;
+  height: 36px;
+}
+.game-screen .card-preview-toolbar .db-card-preview-close {
+  top: 0;
+  right: 0;
+}
+.game-screen .card-preview-dialog-with-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.game-screen .card-preview-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  /* 内容の位置を保ち、スクロール領域の端でカードの影を切らない */
+  padding: 20px;
+  margin: -20px;
+}
+.game-screen .actions + .action-unavailable {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .db-artwork-picker {
+    padding: 12px;
+  }
+
+  .db-artwork-picker-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 18px 14px;
+  }
+
+  .db-artwork-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .db-artwork-option {
+    padding: 8px;
+  }
+
+  .db-artwork-picker-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+    margin: 16px -14px -18px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .card-preview-dialog-with-details {
+    width: min(96vw, 560px);
+  }
+
+  .card-preview-body {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .card-preview-dialog-with-details .db-card-preview-card.card {
+    width: min(68vw, 270px, calc((96dvh - 280px) * 0.7156));
+  }
+
+  .card-preview-details {
+    padding: 0 2px;
+  }
+}
+
+@media (max-width: 760px), (max-width: 1050px) and (max-height: 600px) {
+  .card-preview-dialog-with-details {
+    max-height: 80dvh;
+  }
+}
+
+@media (hover: none) {
+  .db-row-count-controls {
+    opacity: 1;
+  }
+}
+
+.db-card-preview-close {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.db-card-preview-close:hover:not(:disabled) {
+  transform: rotate(5deg) scale(1.05);
+}
+
+.db-card-preview-close span {
+  position: relative;
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+.db-card-preview-close span::before,
+.db-card-preview-close span::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.db-card-preview-close span::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+@keyframes db-card-preview-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes db-card-preview-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes db-card-preview-card-in {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(26px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes db-card-preview-card-out {
+  from {
+    opacity: 1;
+    filter: none;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(18px) scale(0.84);
+  }
+}
+
+/* Game screen */
+.game-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.game-header {
+  min-height: 58px;
+  gap: 12px;
+  padding: 9px 13px;
+  border-color: var(--border);
+  backdrop-filter: blur(16px);
+}
+
+.turn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.turn-label::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.turn-label.my-turn::before {
+  background: var(--accent);
+}
+
+.steps {
+  min-width: 330px;
+  align-items: center;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  scrollbar-width: none;
+}
+
+.step-chip {
+  flex: 1 0 auto;
+  min-width: 48px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-align: center;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+}
+
+.header-actions button {
+  min-height: 34px;
+  padding: 6px 11px;
+  font-size: 11px;
+}
+
+.seat-label {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mode-bar {
+  min-height: 38px;
+  padding: 7px 14px;
+}
+
+.boards {
+  gap: 8px;
+  padding: 10px;
+  background-size: 22px 22px;
+}
+
+.board {
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 14px;
+}
+
+.slot-label {
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.slot-empty {
+  border-radius: 8px;
+}
+
+.pile-count {
+  font-weight: 750;
+}
+
+.card img {
+  border-radius: 6px;
+  filter: drop-shadow(0 6px 8px rgba(0, 3, 13, 0.28));
+}
+
+.card-clickable {
+  outline-offset: 3px;
+}
+
+.card-clickable:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.card-selected {
+  outline-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.sidebar {
+  width: 32%;
+  min-width: 390px;
+  max-width: 540px;
+  border-color: var(--border);
+}
+
+.sidebar-panel-title {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 11px 16px 9px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.detail-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-color: var(--border);
+  border-bottom: 0;
+}
+
+.detail-panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+
+.sidebar-resize-handle {
+  flex: 0 0 8px;
+  cursor: ns-resize;
+  touch-action: none;
+  background: var(--panel2);
+  border-block: 1px solid var(--border);
+  position: relative;
+}
+
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  width: 32px;
+  height: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--border-strong);
+  border-radius: 2px;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:focus-visible {
+  background: var(--border);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.sidebar-resizing {
+  user-select: none;
+}
+
+.detail-empty {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: 22px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 13px;
+  line-height: 1.7;
+}
+
+.detail-card {
+  gap: 14px;
+}
+
+.detail-card .card-lg {
+  width: 176px;
+  height: 246px;
+}
+
+.card-title {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.card-text {
+  line-height: 1.65;
+}
+
+.actions {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.actions button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.log-section {
+  flex: 0 0 var(--log-pane-size, 230px);
+  height: var(--log-pane-size, 230px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.log-section .sidebar-panel-title {
+  position: static;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 9px 12px 7px;
+}
+
+.log-panel {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  padding: 9px 12px 12px;
+}
+
+.log-entry {
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+.hand-area {
+  border-color: var(--border);
+  backdrop-filter: blur(16px);
+}
+
+.prompt-bar {
+  min-height: 48px;
+  height: auto;
+  border-color: var(--border);
+}
+
+.hand-row {
+  min-height: 126px;
+  padding: 8px 14px;
+}
+
+.hand-label {
+  width: 104px;
+  padding: 7px 8px;
+  border-right: 1px solid var(--border);
+  line-height: 1.7;
+}
+
+.hand-cards {
+  /* 手札0枚でもカード1枚分の高さを保ち、フッターの高さが変わらないようにする */
+  /* 上に3px動いても、選択枠3pxとその外側3pxがスクロール領域内に収まる */
+  min-height: calc(var(--card-md-height) + 24px);
+  padding: 10px 10px 14px;
+}
+
+.toast {
+  bottom: 164px;
+  max-width: min(90vw, 560px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.overlay {
+  padding: 18px;
+  backdrop-filter: blur(8px);
+}
+
+.overlay-box {
+  max-width: 100%;
+  border-radius: 18px;
+}
+
+.pick-guidance {
+  position: relative;
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.pick-guidance p {
+  margin: 5px 0;
+}
+
+.pick-guidance strong {
+  display: inline-block;
+  min-width: 62px;
+  margin-right: 7px;
+}
+
+.pick-guidance-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px !important;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 750;
+}
+
+.pick-guidance-context span {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.pick-guidance-has-preview .pick-guidance-context {
+  min-height: 32px;
+  padding-right: 42px;
+}
+
+.pick-guidance .pick-guidance-zoom {
+  top: 8px;
+  right: 14px;
+  bottom: auto;
+}
+
+.pick-guidance-notes {
+  margin: 7px 0 5px;
+  padding-left: 20px;
+}
+
+.pick-guidance-operation {
+  margin-top: 9px !important;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.pick-modal-layer.is-hidden {
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.pick-modal-anchor {
+  position: relative;
+  width: min(calc(100vw - 72px), 720px);
+  max-height: 80vh;
+}
+
+.pick-modal-anchor .pick-box {
+  width: 100%;
+}
+
+.pick-modal-layer.is-hidden .pick-box {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pick-modal-visibility-button {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 60px);
+  z-index: 1;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-radius: 11px;
+  pointer-events: auto;
+}
+
+.pick-modal-visibility-button:hover:not(:disabled) {
+  transform: translateY(-50%);
+}
+
+.pick-modal-visibility-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pick-modal-visibility-button .visibility-slash {
+  stroke-width: 2.2;
+}
+
+@media (max-width: 1280px) {
+  .db-header {
+    grid-template-columns: minmax(190px, 240px) 1fr auto;
+    gap: 10px;
+  }
+
+  .db-metrics {
+    grid-template-columns: 82px 82px minmax(150px, 1fr);
+  }
+
+  .db-list {
+    width: 320px;
+  }
+
+  .sidebar {
+    min-width: 350px;
+  }
+
+  .detail-card .card-lg {
+    width: 148px;
+    height: 207px;
+  }
+}
+
+@media (max-width: 1050px) {
+  .game-screen {
+    height: auto;
+    /* dvhはスクロールでアドレスバーが伸縮すると変わるため、固定のsvhを使う */
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  .game-header {
+    flex-wrap: wrap;
+  }
+
+  .steps {
+    order: 5;
+    flex-basis: 100%;
+  }
+
+  /* 招待リンクバナーはヘッダー等と被らないよう通常フローに置く */
+  .online-banner {
+    position: static;
+    width: 100%;
+    justify-content: center;
+    border-inline: 0;
+    border-top: 0;
+    border-radius: 0;
+  }
+
+  .game-body {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .boards {
+    order: 0;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .sidebar {
+    order: -1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: clamp(260px, 35svh, 360px);
+    min-height: 260px;
+    max-height: 360px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 8px var(--log-pane-size, 50%);
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .detail-panel {
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .log-section {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    border-top: 0;
+  }
+
+  .sidebar-resize-handle {
+    cursor: ew-resize;
+    border-block: 0;
+    border-inline: 1px solid var(--border);
+  }
+  .sidebar-resize-handle::after {
+    width: 2px;
+    height: 32px;
+  }
+
+  .log-panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 900px) {
+  .db-header {
+    grid-template-columns: minmax(180px, 230px) 1fr;
+  }
+
+  .db-header-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .db-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .db-filter-controls {
+    justify-content: flex-start;
+  }
+
+  .db-search-field {
+    flex: 1;
+  }
+
+  .db-search-field input {
+    width: 100%;
+  }
+
+  .db-list {
+    width: 290px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --card-sm-width: 44px;
+    --card-sm-height: 62px;
+    --card-md-width: 64px;
+    --card-md-height: 90px;
+  }
+
+  .hp-bar {
+    height: 20px;
+    transform: translateY(4px);
+  }
+
+  .hp-bar-track {
+    height: 7px;
+  }
+
+  .hp-bar-value strong {
+    min-width: 22px;
+    font-size: 13px;
+    line-height: 16px;
+  }
+
+  .stack-resting .card-resting {
+    margin-top: 13px;
+  }
+
+  .lobby-shell {
+    align-items: start;
+    padding: 12px;
+  }
+
+  .lobby {
+    padding: 24px 18px;
+    border-radius: 19px;
+  }
+
+  .lobby-hero {
+    margin-bottom: 22px;
+  }
+
+  .lobby h1 {
+    font-size: clamp(27px, 9vw, 36px);
+  }
+
+  .lobby-section {
+    padding: 17px 14px;
+  }
+
+  .lobby-players,
+  .saved-deck-library {
+    margin-top: 18px;
+    padding-top: 17px;
+    border-top: 1px solid var(--border);
+  }
+
+  .saved-deck-library-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin-bottom: 10px;
+  }
+
+  /* 見出しテキストが右のボタン群に潰されて縦書き状にならないよう、
+     幅が足りないときはテキストを1行使いにしてボタン群を折り返す */
+  .saved-deck-library-heading > div:first-child {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+
+  .saved-deck-library-heading h3 {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .saved-deck-library-heading p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .saved-deck-library-heading > span {
+    min-width: 42px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: center;
+  }
+
+  .saved-deck-list {
+    max-height: 210px;
+    display: grid;
+    gap: 7px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .saved-deck-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--panel);
+  }
+
+  .saved-deck-summary {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  .saved-deck-summary strong,
+  .saved-deck-summary span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .saved-deck-summary strong {
+    font-size: 12px;
+  }
+
+  .saved-deck-summary span {
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .saved-deck-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .saved-deck-actions button {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+
+  .saved-deck-empty,
+  .lobby-storage-error {
+    margin: 0;
+    padding: 11px;
+    border-radius: 10px;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .saved-deck-empty {
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .lobby-storage-error {
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .lobby-setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-builder {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .db-header {
+    position: static;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .db-metrics {
+    grid-template-columns: 74px 74px minmax(0, 1fr);
+  }
+
+  .db-header-actions {
+    grid-column: auto;
+  }
+
+  .db-header-actions button {
+    flex: 1;
+  }
+
+  .db-errors {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 13px;
+  }
+
+  .db-validation-banner {
+    display: none;
+  }
+
+  .db-mobile-validation {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 13px;
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .db-mobile-validation strong {
+    font-size: 11px;
+  }
+
+  .db-mobile-switch {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .db-mobile-switch button {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .db-mobile-switch button.active {
+    border-color: var(--border-strong);
+  }
+
+  .db-mobile-switch button span {
+    min-width: 25px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--panel3);
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .db-body {
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .db-pool {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .db-mobile-pane-cards .db-list,
+  .db-mobile-pane-deck .db-pool {
+    display: none;
+  }
+
+  .db-filters {
+    padding: 10px 12px;
+  }
+
+  .db-tabs {
+    overflow-x: auto;
+  }
+
+  .db-tabs button {
+    flex: 1 0 auto;
+  }
+
+  .db-filter-controls {
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .db-search-field {
+    min-width: 180px;
+  }
+
+  .db-cards {
+    grid-template-columns: repeat(auto-fill, minmax(98px, 1fr));
+    padding: 12px 10px 24px;
+  }
+
+  .db-card .card {
+    width: 88px;
+    height: 123px;
+  }
+
+  .db-list {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .db-list-header {
+    position: static;
+  }
+
+  .game-header {
+    position: sticky;
+    z-index: 80;
+    top: 0;
+    gap: 8px;
+    padding: 8px 9px;
+  }
+
+  .turn-label {
+    flex: 1 1 auto;
+  }
+
+  .header-actions {
+    margin-left: auto;
+  }
+
+  .seat-label {
+    /* スマホではヘッダーを圧迫するため非表示 (観戦中はステータスバーにも出る) */
+    display: none;
+  }
+
+  .steps {
+    min-width: 0;
+    margin-top: 1px;
+  }
+
+  .game-body {
+    min-height: 0;
+  }
+
+  .boards {
+    min-height: 0;
+    gap: 5px;
+    padding: 5px;
+    overflow-x: auto;
+  }
+
+  .board {
+    /* 中身 (バック5体+サイドの山) が広い時は枠ごと広がり、はみ出しを防ぐ */
+    min-width: fit-content;
+    width: 100%;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 11px;
+  }
+
+  .board-side {
+    gap: 2px;
+  }
+
+  .stage {
+    gap: 10px;
+  }
+
+  .stage-front,
+  .stage-back {
+    min-height: 0;
+    gap: 8px;
+  }
+
+  .support-chips {
+    right: -13px;
+    width: 20px;
+  }
+
+  .support-chip {
+    width: 20px;
+    height: 28px;
+  }
+
+  /* スマホは行間が詰まっていて盤面からはみ出すため、
+     エール表示はカード下端に重ねるバッジ状の配置にする */
+  .stack-wrap > .yell-dots {
+    top: auto;
+    bottom: 2px;
+    pointer-events: none;
+  }
+
+  /* お休み(横向き)は回転後の見た目のカード下端に合わせる */
+  .stack-wrap.stack-resting > .yell-dots {
+    bottom: calc(2px + (var(--card-md-height) - var(--card-md-width)) / 2);
+  }
+
+  /* 右下の重なり枚数バッジ (×n) と重ならないよう1段上げる */
+  .stack-wrap:has(.bloom-badge) > .yell-dots {
+    bottom: 21px;
+  }
+
+  .stack-wrap.stack-resting:has(.bloom-badge) > .yell-dots {
+    bottom: calc(21px + (var(--card-md-height) - var(--card-md-width)) / 2);
+  }
+
+  .sidebar {
+    /* スマホはフィールド優先: 盤面の下に情報欄を置き、
+       高さは内容に合わせて伸ばす (dvh依存の高さはスクロールで変わるため廃止) */
+    order: 1;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    overflow: visible;
+  }
+
+  /* 手札と操作バーは画面下に固定し、フィールドと同時に見えるようにする */
+  .hand-area {
+    position: sticky;
+    z-index: 90;
+    bottom: 0;
+  }
+
+  .detail-panel {
+    flex: none;
+    height: auto;
+    min-height: 150px;
+    max-height: none;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-card .card-lg {
+    width: 132px;
+    height: 185px;
+  }
+
+  .log-section {
+    flex: none;
+    height: 176px;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .log-panel {
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+
+  .prompt-bar {
+    flex-wrap: wrap;
+    padding: 9px 11px;
+    white-space: normal;
+  }
+
+  .hand-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 0;
+    padding: 7px 9px 10px;
+  }
+
+  .hand-label {
+    width: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hand-label br {
+    display: none;
+  }
+
+  .manual-ops {
+    flex-wrap: wrap;
+  }
+
+  .overlay-box {
+    width: min(100%, 620px);
+    padding: 24px 18px;
+  }
+
+  .pick-box {
+    width: 100%;
+    max-height: 86vh;
+  }
+}
+
+@media (max-width: 936px) {
+  /* 大画面用の余白では収まらない幅だけアイコンを内側へ寄せる */
+  .pick-modal-visibility-button {
+    right: calc(100% + 18px);
+  }
+}
+
+@media (max-width: 860px) {
+  /* 小画面では左側のアイコンも表示領域に収める */
+  .pick-modal-anchor {
+    transform: translateX(30px);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    /* フィールド全体が縦横に収まるようカードをさらに縮小する */
+    --card-sm-width: 36px;
+    --card-sm-height: 50px;
+    --card-md-width: 56px;
+    --card-md-height: 78px;
+  }
+
+  .hp-bar {
+    height: 18px;
+    transform: translateY(4px);
+  }
+
+  .hp-bar-track {
+    height: 6px;
+  }
+
+  .hp-bar-value strong {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  /* デッキ構築ではカード画像を読むことを優先し、操作欄を2段に圧縮する */
+  .db-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 8px;
+    padding: 8px 10px;
+  }
+
+  .db-name-field {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .db-name-field > span {
+    display: none;
+  }
+
+  .db-name-field input {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 13px;
+  }
+
+  .db-header-actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 5px;
+    align-self: stretch;
+  }
+
+  .db-header-actions button {
+    min-height: 36px;
+    padding: 5px 7px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .db-metrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: 66px 66px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .db-metric {
+    min-height: 43px;
+    padding: 5px 8px;
+    border-radius: 9px;
+  }
+
+  .db-metric > span {
+    font-size: 8px;
+  }
+
+  .db-metric strong {
+    font-size: 15px;
+  }
+
+  .db-metric-oshi strong {
+    font-size: 11px;
+  }
+
+  .db-mobile-switch {
+    gap: 4px;
+    padding: 5px 8px;
+  }
+
+  .db-mobile-switch button {
+    min-height: 38px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .db-filters {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    padding: 7px 8px;
+  }
+
+  .db-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+    padding: 3px;
+    overflow: visible;
+  }
+
+  .db-tabs button {
+    min-height: 32px;
+    padding: 4px 3px;
+    font-size: 10px;
+  }
+
+  .db-filter-controls {
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .db-filter-controls label {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .db-filter-controls label > span,
+  .db-count {
+    display: none;
+  }
+
+  .db-filter-controls select,
+  .db-filter-controls input {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+
+  .db-filter-controls .db-search-field {
+    min-width: 0;
+    flex-grow: 1.45;
+  }
+
+  .db-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 8px;
+    padding: 10px 8px 28px;
+  }
+
+  .db-card {
+    gap: 5px;
+    padding: 6px 4px 7px;
+  }
+
+  .db-card .card {
+    width: min(100%, 148px);
+    height: auto;
+    aspect-ratio: 78 / 109;
+    border-radius: 9px;
+  }
+
+  .db-card-name {
+    font-size: 12px;
+  }
+
+  .db-card-id {
+    font-size: 9px;
+  }
+
+  .db-card-zoom {
+    right: 7px;
+    bottom: 7px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .db-card-preview {
+    padding: 12px;
+  }
+
+  .db-card-preview-dialog {
+    gap: 9px;
+    padding: 14px 14px 12px;
+  }
+
+  .db-card-preview-card.card {
+    width: min(80vw, 330px, calc((100dvh - 120px) * 0.7156));
+  }
+  .stack-resting .card-resting {
+    margin-top: 11px;
+  }
+
+  .stage-front,
+  .stage-back {
+    gap: 6px;
+  }
+
+  .stage {
+    gap: 6px;
+  }
+
+  .board {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .boards {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .slot-label {
+    font-size: 9px;
+  }
+
+  /* 画面下固定の手札+操作バーを圧縮し、フィールドの可視域を確保する */
+  .online-banner {
+    gap: 8px;
+    padding: 3px 10px;
+    font-size: 9px;
+  }
+
+  .online-banner button {
+    min-height: 22px;
+    padding: 2px 8px;
+    font-size: 9px;
+  }
+
+  .prompt-bar {
+    min-height: 40px;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .hand-row {
+    gap: 2px;
+    padding: 4px 8px 7px;
+  }
+
+  .hand-label {
+    padding: 1px 0 3px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .lobby-actions,
+  .seat-select {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .lobby-actions button,
+  .lobby-actions .primary {
+    width: 100%;
+  }
+
+  .saved-deck-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .saved-deck-actions button {
+    flex: 1;
+  }
+
+  .db-metrics {
+    grid-template-columns: 66px 66px minmax(0, 1fr);
+  }
+
+  .db-metric-oshi {
+    grid-column: auto;
+  }
+
+  .db-filter-controls label {
+    flex: 1;
+  }
+
+  .db-count {
+    min-width: 44px;
+  }
+
+  .header-actions button {
+    padding-inline: 8px;
+  }
+
+  .header-actions .seat-label {
+    order: 0;
+  }
+
+  .steps {
+    order: 5;
+  }
+
+  .sidebar-panel-title {
+    position: static;
+  }
+}
+
+@media (hover: none) {
+  .card-clickable:hover,
+  .card.card-resting.card-clickable:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* モーダル左側のアイコンが小画面の外へ出ないよう余白を確保する */
+  .pick-modal-visibility-button {
+    right: calc(100% + 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* 対象の強調は、タップ受付と同じ候補一覧を参照する。 */
+.slot.target-candidate {
+  position: relative;
+}
+.target-candidate .stack-top {
+  outline: 3px solid #78b79b;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px #cbe6da;
+}
+.target-unavailable .stack-top,
+.target-unavailable > .card,
+.target-unavailable .support-chips,
+.target-unavailable .stack-action-underlay {
+  opacity: 0.45;
+}
+.attached-support-details {
+  margin-top: 8px;
+}
+.compact-stack-status,
+.action-unavailable {
+  margin: 6px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.compact-stack-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.action-unavailable {
+  color: var(--danger);
+}
+
+/* 縦持ちと高さの限られた横持ちで、盤面を優先した操作配置を使う。 */
+@media (max-width: 760px), (max-width: 1050px) and (max-height: 600px) {
+  .game-compact {
+    --card-md-width: 58px;
+    --card-md-height: 81px;
+    --card-sm-width: 44px;
+    --card-sm-height: 62px;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  }
+
+  .game-compact button,
+  .game-log-dialog button {
+    min-width: 30px;
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 9px;
+    touch-action: manipulation;
+  }
+  .game-compact .game-header {
+    position: relative;
+    flex: 0 0 auto;
+    min-height: 0;
+    gap: 4px 8px;
+    padding: 4px 8px;
+    z-index: 100;
+  }
+  .game-compact .turn-label {
+    flex: 1 1 100px;
+    min-width: 0;
+    font-size: 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .game-compact .header-actions {
+    gap: 4px;
+    margin-left: auto;
+  }
+  .game-compact .steps {
+    order: 5;
+    flex-basis: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 1px;
+  }
+  .game-compact .step-chip {
+    min-width: 0;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+  .game-mobile-menu {
+    position: absolute;
+    z-index: 110;
+    top: 100%;
+    right: 8px;
+    display: grid;
+    gap: 8px;
+    min-width: 180px;
+    max-height: 65svh;
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: var(--shadow-lg);
+  }
+  .game-mobile-menu > .game-icon-button {
+    justify-self: end;
+  }
+  .game-compact .game-body {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .game-compact .boards {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    overflow: auto;
+    gap: 6px;
+    padding: 6px;
+    overscroll-behavior: contain;
+  }
+  .game-compact .board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    container-type: inline-size;
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 6px;
+    padding: 6px;
+  }
+  .game-compact .board-side,
+  .game-compact .board.flipped .board-side {
+    display: contents;
+  }
+  .game-compact .board-resources-left .pile:nth-child(1) {
+    grid-column: 1;
+  }
+  .game-compact .board-resources-left .pile:nth-child(2) {
+    grid-column: 2;
+  }
+  .game-compact .board-resources-right .pile:nth-child(1) {
+    grid-column: 3;
+  }
+  .game-compact .board-resources-right .pile:nth-child(2) {
+    grid-column: 4;
+  }
+  .game-compact .board-resources-right .pile:nth-child(3) {
+    grid-column: 5;
+  }
+  .game-compact .pile {
+    flex: 0 1 auto;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 38px;
+    justify-content: center;
+    gap: 0;
+    padding: 2px 3px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--panel2);
+  }
+  .game-compact .pile > .card,
+  .game-compact .pile > div,
+  .game-compact .pile > .sideways-wrap,
+  .game-compact .pile > .slot-empty {
+    display: none;
+  }
+  .game-compact .pile-count {
+    position: static;
+    font-size: 12px;
+  }
+  .game-compact .stage {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    gap: 12px;
+  }
+  .game-compact .stage-front,
+  .game-compact .stage-back {
+    gap: 8px;
+    justify-content: center;
+    overflow: visible;
+  }
+  .game-compact .stage-back {
+    --card-md-width: min(
+      58px,
+      calc((100cqw - var(--back-gap-total)) / var(--back-width-units))
+    );
+    --card-md-height: calc(var(--card-md-width) * 1.4);
+  }
+  .game-compact .stage-back .stack-resting .card-resting {
+    margin-top: calc((var(--card-md-height) - var(--card-md-width)) / 2);
+  }
+  .game-compact .slot {
+    flex: 0 0 auto;
+  }
+  .game-compact .support-chips {
+    pointer-events: none;
+    width: 14px;
+    right: -5px;
+  }
+  .game-compact .support-chip {
+    width: 14px;
+    height: 20px;
+  }
+  .game-compact .support-chip.clickable {
+    pointer-events: auto;
+  }
+  .game-compact .stack-wrap > .yell-dots {
+    top: auto;
+    bottom: 2px;
+    pointer-events: none;
+  }
+  .game-compact .stack-wrap:has(.bloom-badge) > .yell-dots {
+    bottom: 21px;
+  }
+  .game-compact .stack-resting .card-resting {
+    margin-top: 11px;
+  }
+  .game-compact .stack-wrap.stack-resting > .yell-dots {
+    bottom: calc(2px + (var(--card-md-height) - var(--card-md-width)) / 2);
+  }
+  .game-compact .stack-wrap.stack-resting:has(.bloom-badge) > .yell-dots {
+    bottom: calc(21px + (var(--card-md-height) - var(--card-md-width)) / 2);
+  }
+  .game-compact .hp-bar {
+    height: 20px;
+    transform: translateY(4px);
+  }
+  .game-compact .hp-bar-track {
+    height: 7px;
+  }
+  .game-compact .hp-bar-value strong {
+    min-width: 22px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .game-compact .hand-area {
+    position: relative;
+    bottom: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    z-index: 90;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .game-compact .hand-area:has(> .mobile-card-panel) {
+    border-top: 0;
+  }
+  .game-compact .prompt-bar {
+    flex-wrap: wrap;
+    min-height: 42px;
+    max-height: 28svh;
+    overflow: auto;
+    white-space: normal;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    align-content: center;
+  }
+  .game-compact .prompt-bar > span {
+    flex: 1 1 160px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .game-compact .prompt-bar:has(> .incoming-damage-notice) {
+    align-content: flex-start;
+  }
+  .game-compact .mobile-card-panel + .prompt-bar {
+    border-top: 1px solid var(--border);
+  }
+  .game-compact.selecting-target .prompt-bar {
+    border-top: 2px solid #a9d4c1;
+    background: var(--panel3);
+  }
+  .game-compact .turn-advance-button {
+    margin-left: auto;
+    max-width: 100%;
+  }
+  .game-compact .hand-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    min-height: 0;
+    padding: 2px 6px;
+    background: var(--panel);
+  }
+  .game-compact .hand-label {
+    width: auto;
+    padding: 0 3px;
+    border: 0;
+    font-size: 11px;
+  }
+  .game-compact .hand-label br {
+    display: none;
+  }
+  .game-compact .hand-cards {
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 9px;
+    min-height: calc(var(--card-md-height) + 24px);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 10px 10px 14px;
+  }
+  .mobile-card-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: 34svh;
+    overflow: hidden;
+    border-top: 1px solid var(--accent);
+    border-radius: 0;
+    background: var(--panel);
+  }
+  .mobile-panel-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 10px;
+  }
+  .mobile-panel-content > div {
+    display: flex;
+    flex-direction: column;
+  }
+  .game-detail-fixed-heading {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .compact-card-detail {
+    display: contents;
+  }
+  .compact-card-heading {
+    order: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0;
+    background: var(--panel);
+  }
+  .compact-card-heading > div {
+    display: grid;
+    gap: 2px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .compact-card-heading .muted {
+    font-size: 11px;
+  }
+  .mobile-panel-content .actions {
+    order: 2;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+  }
+  .mobile-panel-content .actions button {
+    flex: 1 1 140px;
+  }
+  .compact-card-text {
+    order: 3;
+    border-top: 1px solid var(--border);
+  }
+  .game-compact .attached-support-details {
+    order: 4;
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+  .game-compact .attached-supports {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin: 0 0 8px;
+  }
+  .game-compact .attached-supports > span {
+    display: none;
+  }
+  .game-compact .stage-card-zoom,
+  .game-compact .hand-card-zoom,
+  .game-compact .modal-card-zoom {
+    width: 30px;
+    height: 30px;
+    padding: 6px;
+    right: 0;
+    bottom: 0;
+  }
+  .game-compact .overlay-box {
+    max-width: calc(100vw - 16px);
+    max-height: 88svh;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .game-compact .db-card-preview-close {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    z-index: 2;
+  }
+  .game-compact .toast {
+    top: 80px;
+    bottom: auto;
+    font-size: 12px;
+    pointer-events: none;
+  }
+  .game-log-dialog {
+    width: min(94vw, 560px);
+    max-height: 82svh;
+    padding: 0;
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--text);
+  }
+  .game-log-dialog::backdrop {
+    background: var(--overlay-backdrop);
+  }
+  .game-log-dialog > section {
+    display: flex;
+    flex-direction: column;
+    max-height: 80svh;
+  }
+  .game-log-header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .game-log-header .game-icon-button {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  .game-log-dialog h2 {
+    font-size: 14px;
+    margin: 0;
+  }
+  .game-log-dialog .log-panel {
+    min-height: 0;
+    overflow-y: auto;
+    font-size: 12px;
+  }
+}
+
+/* 横持ちは盤面を左、操作と手札を右に置く。 */
+@media (max-width: 1050px) and (max-height: 600px) and (orientation: landscape) {
+  .game-compact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(230px, 32vw, 300px);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .game-compact .game-header {
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+  }
+  .game-compact .steps {
+    flex: 0 1 auto;
+    order: 0;
+  }
+  .game-compact .step-chip:not(.active) {
+    display: none;
+  }
+  .game-compact .game-body {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .game-compact .hand-area {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+  }
+  .game-compact .mobile-card-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    border-radius: 0;
+  }
+  .game-compact .prompt-bar {
+    flex: 0 0 auto;
+    max-height: 40svh;
+    margin-top: auto;
+  }
+  .game-compact .hand-row {
+    flex: 0 0 auto;
+  }
+  .game-compact .stage {
+    gap: 8px;
+  }
+}
+
+@media (hover: none) {
+  .game-compact .card-clickable:hover,
+  .game-compact button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* 選択状態は穏やかな色の枠線で示し、対象外カードの拡大操作は明瞭に保つ。 */
+.game-screen .card-selected {
+  outline: 3px solid #78b6ce;
+  box-shadow: 0 0 0 1px #d8edf3;
+}
+.db-card-preview-card.card {
+  filter: drop-shadow(0 6px 10px rgb(36 61 81 / 26%));
+}
+.db-card-preview-card.card img {
+  filter: none;
+}
+.game-icon-button {
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 5px;
+}
+.game-icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+@media (max-width: 760px), (max-width: 1050px) and (max-height: 600px) {
+  .game-compact .pile .slot-label {
+    font-size: 8.5px;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+  }
+  .game-compact .compact-card-heading {
+    align-items: center;
+  }
+  .compact-card-heading > .compact-card-icons {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+  .game-compact .game-icon-button,
+  .game-log-dialog .game-icon-button {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 5px;
+  }
+  .compact-card-text .card-title {
+    display: none;
+  }
+  .compact-card-text {
+    padding-top: 8px;
+  }
+  .mobile-panel-content .card-text {
+    line-height: 1.6;
+  }
+  .mobile-panel-content .card-text p {
+    margin: 0;
+  }
+  .mobile-panel-content .card-text p + p {
+    margin-top: 8px;
+  }
+  .mobile-panel-content .game-action-option {
+    gap: 4px;
+  }
+  .compact-stack-status {
+    order: 1;
+    margin: 0 0 8px;
+    font-size: 11px;
+  }
+  .detail-yells .yell-dot {
+    width: 12px;
+    height: 12px;
+    border-color: var(--border-strong);
+  }
+  .attached-support-details p {
+    margin: 8px 0;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .game-compact.selecting-target .mobile-panel-content .actions {
+    display: none;
+  }
+  .mobile-panel-content .action-unavailable {
+    order: 2;
+    margin: 0 0 8px;
+  }
+}
+.game-action-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1 1 180px;
+  min-width: 0;
+  gap: 3px;
+}
+.game-action-option > button {
+  max-width: 100%;
+}
+.game-screen .game-action-option > .action-unavailable {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.action-target-reasons {
+  flex: 1 1 100%;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.action-target-reasons > p {
+  margin: 3px 0;
+  font-weight: 600;
+}
+.action-target-reasons ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.action-target-reasons li + li {
+  margin-top: 3px;
+}
+.action-target-reasons li > span {
+  font-weight: 600;
+}
+@media (max-width: 760px), (max-width: 1050px) and (max-height: 600px) {
+  .mobile-panel-content .game-action-option > button {
+    flex: 0 0 auto;
+  }
+  .mobile-panel-content .action-target-reasons {
+    order: 2;
+    flex: 0 0 auto;
+    margin: 0 0 8px;
+  }
+  .mobile-panel-content .action-target-reasons > p {
+    margin: 0 0 4px;
+  }
+  .mobile-panel-content .action-target-reasons li + li {
+    margin-top: 4px;
+  }
+}
+.game-screen .archive-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.archive-modal-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.archive-modal-header h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.archive-modal-header .game-icon-button {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+.archive-modal-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px;
+}
+/* CPU対戦の保存・再開。スマホでも設定画面の幅内に収める。 */
+.cpu-resume-card {
+  padding: 14px;
+  margin: 0 0 18px;
+  border: 1px solid #d9e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.cpu-resume-card p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.cpu-resume-card button {
+  margin: 6px 8px 0 0;
+}
+.cpu-save-error {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff7ed;
+  color: #854d0e;
+  font-size: 13px;
+}
+.effect-choice-list {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  min-width: 0;
+}
+.effect-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+.effect-choice-action {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.effect-resolution-guide {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 12px;
+}
+.effect-resolution-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  overflow-wrap: anywhere;
+}
+.effect-resolution-guide summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent);
+  margin-top: 4px;
+}
+.effect-resolution-guide details p {
+  max-height: 18svh;
+  overflow-y: auto;
+  margin: 6px 0 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.effect-info-dialog {
+  width: min(92vw, 560px);
+  max-height: 80svh;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+}
+.effect-info-dialog::backdrop {
+  background: var(--overlay-backdrop);
+}
+.effect-info-dialog > section {
+  display: flex;
+  flex-direction: column;
+  max-height: 78svh;
+}
+.effect-info-dialog header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.effect-info-dialog h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.effect-info-dialog .game-icon-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.effect-info-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

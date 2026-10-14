@@ -1,0 +1,168 @@
+/* ---------------- カード ---------------- */
+.card {
+  border-radius: 6px;
+  overflow: visible;
+  position: relative;
+  flex-shrink: 0;
+  background: transparent;
+  transition: transform 0.1s;
+}
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+/* 画像の取得が終わるまでカード枠を敷き、空欄が見えないようにする */
+.card-art {
+  border-radius: 6px;
+}
+.card-sm {
+  --card-width: var(--card-sm-width);
+  --card-height: var(--card-sm-height);
+  width: var(--card-sm-width);
+  height: var(--card-sm-height);
+}
+.card-md {
+  --card-width: var(--card-md-width);
+  --card-height: var(--card-md-height);
+  width: var(--card-md-width);
+  height: var(--card-md-height);
+}
+.card-lg {
+  --card-width: 220px;
+  --card-height: 308px;
+  width: 220px;
+  height: 308px;
+}
+.card-clickable {
+  cursor: pointer;
+}
+.card-clickable:hover {
+  transform: translateY(-3px);
+}
+.card-selected {
+  outline: 3px solid var(--accent);
+}
+.card.card-resting {
+  width: var(--card-height);
+  height: var(--card-width);
+  transform: none;
+  box-shadow: 0 6px 8px rgba(0, 3, 13, 0.28);
+}
+.card.card-resting.card-clickable:hover {
+  transform: translateY(-3px);
+}
+.card.card-resting > img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--card-width);
+  height: var(--card-height);
+  transform: translate(-50%, -50%) rotate(90deg);
+  filter: none;
+}
+.card-yell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-weight: bold;
+  border-radius: 6px;
+}
+.yell-dots {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.yell-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  display: inline-block;
+}
+/* 5個以上のまとめ表示「●×n」 */
+.yell-dots-collapsed {
+  align-items: center;
+  gap: 3px;
+}
+.yell-count {
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  margin-left: -2px;
+}
+/* まとめ表示中にエールが到着してnが増えたときのポップ */
+.yell-count-pop {
+  animation: yell-count-pop 260ms cubic-bezier(0.2, 0.86, 0.28, 1.24);
+}
+/* 合体演出中は本体を隠し、ゴーストだけを見せる */
+.yell-merging .yell-collapsed-dot,
+.yell-merging .yell-count {
+  opacity: 0;
+  animation: none;
+}
+.yell-merge-ghost {
+  position: absolute;
+  margin: 0;
+  animation: yell-merge var(--yell-merge-duration, 380ms)
+    cubic-bezier(0.55, 0.06, 0.35, 1) forwards;
+}
+@keyframes yell-merge {
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--yell-merge-dx), var(--yell-merge-dy)) scale(0.75);
+    opacity: 0.9;
+  }
+}
+.yell-collapsed-reveal {
+  animation: yell-collapsed-pop 420ms cubic-bezier(0.2, 0.86, 0.28, 1.24);
+}
+.yell-count-reveal {
+  animation: yell-count-pop 420ms cubic-bezier(0.2, 0.86, 0.28, 1.24);
+}
+/* まとめ表示中にエールが到着したときのひと押し */
+.yell-collapsed-pulse {
+  animation: yell-collapsed-pop 320ms cubic-bezier(0.2, 0.86, 0.28, 1.24);
+}
+@keyframes yell-collapsed-pop {
+  0% {
+    transform: scale(1.55);
+  }
+  60% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes yell-count-pop {
+  0% {
+    transform: scale(1.5);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yell-count-pop,
+  .yell-collapsed-reveal,
+  .yell-count-reveal,
+  .yell-collapsed-pulse {
+    animation: none;
+  }
+}
+.yell-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}
