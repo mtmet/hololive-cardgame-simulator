@@ -112,10 +112,8 @@ function parseTriggerSection(
     ],
     [new RegExp(`^${H}がコラボした時、`), "collabed"],
     [new RegExp(`^自分の能力で、${H}が回復した時、`), "healed"],
-    [
-      new RegExp(`^${H}(?:のBloomレベルが上がった|がBloomした)時、`),
-      "bloomLevelUp",
-    ],
+    [new RegExp(`^${H}がBloomした時、`), "bloomed"],
+    [new RegExp(`^${H}のBloomレベルが上がった時、`), "bloomLevelUp"],
   ];
   for (const [re, event] of pats) {
     const mm = sec.match(re);

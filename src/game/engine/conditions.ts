@@ -100,6 +100,18 @@ export function giftPositionOk(
   );
 }
 
+/** 能力追加の誘発は付与先ごと、サポート自身の誘発はサポート個体ごとに数える。 */
+export function attachedTriggerUseKey(
+  stackId: number,
+  supportUid: string,
+  index: number,
+  granted: boolean | undefined,
+): string {
+  return granted
+    ? `giftTriggered:support:${supportUid}:${index}:holder:${stackId}`
+    : supportUid;
+}
+
 /**
  * トリガー1件が発火するかの共通判定。
  * [相手のターンで、]・ポジション限定・[ターンにX回] の3つはイベント種別に依らず
@@ -138,8 +150,22 @@ export function triggerDefOps(
   label: string,
   ops: Op[],
 ): Op[] {
-  if (!def.optional) return ops;
-  const thenOps = structuredClone(ops) as Op[];
+  // 「終了する時、〜なら」は誘発する時刻と、解決する効果内の条件を分ける。
+  // 同じ時刻に待機した先行能力で、HPやそのステップ中のライフが変わり得る。
+  const effectOps: Op[] = def.perfCond
+    ? [
+        {
+          t: "if",
+          cond:
+            def.perfCond === "selfLifeReduced"
+              ? { c: "lifeReducedThisPerformance" }
+              : { c: "not", inner: { c: "selfDamaged" } },
+          then: ops,
+        },
+      ]
+    : ops;
+  if (!def.optional) return effectOps;
+  const thenOps = structuredClone(effectOps) as Op[];
   if (def.timesPerTurn !== undefined)
     thenOps.unshift({ t: "markGiftUsed", key: timesPerTurnKey });
   return [
@@ -473,10 +499,14 @@ export function damageTakenDeltaOf(
         if (!matchesPosition(found.pos, aura.filter?.position)) continue;
         if (aura.fromSource) {
           const src = opts?.source;
-          // 「相手の(F)ホロメンから」は、位置やBloomレベルだけでなく持ち主も確認する。
+          // 場を離れた発生源も、最後の持ち主・位置・Bloomレベルで情報を参照する。
+          const sourcePlayer = src
+            ? (findStackById(s, src.stack.id)?.player ??
+              s.lastKnownHolomen?.[src.stack.id]?.player)
+            : undefined;
           if (
             !src ||
-            findStackById(s, src.stack.id)?.player !== other(found.player) ||
+            sourcePlayer !== other(found.player) ||
             !sourceMatchesFilter(s, src, aura.fromSource)
           )
             continue;
@@ -921,6 +951,10 @@ export function stackBloomLevels(
   s: GameState,
   stack: HolomenStack,
 ): HolomenCard["bloomLevel"][] {
+  // 10.12.1: 場外へ移った後は、解除済みの修正ではなく離脱時のレベルを参照する。
+  const lastKnown = s.lastKnownHolomen?.[stack.id];
+  if (lastKnown?.bloomLevels && !findStackById(s, stack.id))
+    return lastKnown.bloomLevels;
   const level = topCard(s, stack).bloomLevel;
   return [
     ...new Set([
@@ -1114,6 +1148,7 @@ export function cardMatchesFilter(
   }
   if (f.unlimitedOnly && (c.cardType !== "holomen" || !c.unlimitedCopies))
     return false;
+  if (f.hasGift && (c.cardType !== "holomen" || !c.gift)) return false;
   if (f.hasCollabEffect && (c.cardType !== "holomen" || !c.collabEffect))
     return false;
   if (f.hasBloomEffect && (c.cardType !== "holomen" || !c.bloomEffect))
@@ -1408,6 +1443,10 @@ export function evalCond(
       return cond.inner.some((c) => evalCond(s, ctx, c));
     case "selfDamaged":
       return !!src && src.stack.damage > 0;
+    case "lifeReducedThisPerformance": {
+      const before = s.lifeAtPerfStart?.[ctx.player];
+      return before !== undefined && p.life.length < before;
+    }
     case "centerDamaged":
       return !!p.center && p.center.damage > 0;
     case "oppBackDamaged":
@@ -1625,7 +1664,9 @@ export function evalCond(
       const c = cardOf(s, uid);
       if (c.cardType !== "holomen") return false;
       const downed = ctx.downedStackId
-        ? findStackById(s, ctx.downedStackId)
+        ? (findStackById(s, ctx.downedStackId) ??
+          s.lastKnownHolomen?.[ctx.downedStackId] ??
+          null)
         : null;
       const levels = downed
         ? stackBloomLevels(s, downed.stack)

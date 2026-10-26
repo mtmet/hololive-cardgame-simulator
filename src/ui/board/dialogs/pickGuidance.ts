@@ -74,6 +74,7 @@ function cardFilterLabel(filter: CardFilter): string {
   if (filter.limited) qualifiers.push("LIMITED");
   if (filter.excludeLimited) qualifiers.push("LIMITEDではない");
   if (filter.unlimitedOnly) qualifiers.push("デッキ投入枚数に上限がない");
+  if (filter.hasGift) qualifiers.push("ギフト持ち");
   if (filter.hasCollabEffect) qualifiers.push("コラボエフェクト持ち");
   if (filter.sameNameAs === "oshi")
     qualifiers.push("推しホロメンと同じカード名");
@@ -192,13 +193,19 @@ export function pickGuidance(
       ? " その後、デッキをシャッフルします。"
       : prompt.shuffleAfter === "cheer"
         ? " その後、エールデッキをシャッフルします。"
-        : "";
+        : prompt.shuffleAfter === "holo"
+          ? " その後、ホロパワーをシャッフルします。"
+          : "";
 
   return {
-    title: PICK_DESTINATION_TITLES[prompt.dest],
+    title: prompt.revealThenPick
+      ? "公開するカードを選択"
+      : PICK_DESTINATION_TITLES[prompt.dest],
     count,
     selection: `${pickSourceLabel(prompt, seat)}から、${condition}を${count}選んでください。`,
-    result: `${pickDestinationResult(prompt)}${pickRestResult(prompt)}${shuffle}`,
+    result: prompt.revealThenPick
+      ? `選んだカードを公開し、その中から${prompt.revealThenPick.n}枚を手札に加え、残りをアーカイブします。${shuffle}`
+      : `${pickDestinationResult(prompt)}${pickRestResult(prompt)}${shuffle}`,
     notes,
   };
 }

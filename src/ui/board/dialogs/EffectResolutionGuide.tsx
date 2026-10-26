@@ -82,7 +82,7 @@ export function replacementInfo(
   choice: DamageReplacementChoice,
   player: EffectContextData["player"],
 ): EffectInfo {
-  if (choice.kind === "oshi")
+  if (choice.kind === "oshi" || choice.kind === "artDamageOrder")
     return { label: choice.label, description: choice.description };
   if (choice.kind === "support")
     return resolutionInfo(game, {

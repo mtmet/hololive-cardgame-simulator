@@ -25,7 +25,11 @@ import type {
   Prompt,
 } from "../../game/types";
 import { CardDescription } from "../cards/CardDescription";
-import { CloseIcon, CardPreviewButton } from "../cards/CardPreviewButton";
+import {
+  CloseIcon,
+  CardPreviewButton,
+  MagnifyIcon,
+} from "../cards/CardPreviewButton";
 import { CheerChip, CardView } from "../cards/CardView";
 import { GameCardDetail, GameDetailPanel } from "../cards/GameCardDetail";
 import { OshiDetail } from "../cards/OshiDetail";
@@ -80,7 +84,6 @@ import { PlayerBoard } from "./PlayerBoard";
 import type { DragPayload } from "./PlayerBoard";
 import { GameLogDialog } from "./dialogs/GameLogDialog";
 import { GameSidebar } from "./GameSidebar";
-import { pickGuidance } from "./dialogs/pickGuidance";
 import {
   selectableStackIds,
   attachedSupportCardId,
@@ -92,7 +95,14 @@ import { sortHandForDisplay } from "./handDisplay";
 import { toggleBoundedSelection } from "./selection";
 import { useCardDrag } from "./useCardDrag";
 import { useCompactGameLayout } from "./useCompactGameLayout";
-import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
+import {
+  cloneElement,
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 
 /** アーツの対象選択モード */
 type ArtMode = { fromPos: "center" | "collab"; artIndex: number } | null;
@@ -1901,7 +1911,7 @@ export function GameScreen({
         ] as const;
         return (
           <div className="prompt-bar">
-            <span>つのまきじゃんけん: 出す手を選んでください</span>
+            <span>じゃんけん: 出す手を選んでください</span>
             {hands.map(([hand, label]) => (
               <button
                 key={hand}
@@ -1914,14 +1924,8 @@ export function GameScreen({
           </div>
         );
       }
-      case "effectPickCard": {
-        const guidance = pickGuidance(prompt, seat);
-        return (
-          <div className="prompt-bar idle">
-            <span className="muted">{guidance.title}中…</span>
-          </div>
-        ); // 実体はモーダルで表示
-      }
+      case "effectPickCard":
+        return <div className="prompt-bar idle" />; // 操作案内はモーダル側に表示。行の高さは保つ。
     }
   };
 
@@ -2708,6 +2712,62 @@ export function GameScreen({
     </div>
   );
 
+  const resolvingSupports = ([0, 1] as const).flatMap((player) =>
+    (game.players[player].resolvingSupports ?? []).flatMap((uid) => {
+      const id = game.uidToCard[uid];
+      return id ? [{ player, uid, card: getCard(id) }] : [];
+    }),
+  );
+
+  const statusBar = statusContent();
+  const passiveStatus = statusBar?.props.className?.includes("idle");
+  const resolvingSupportContent = (
+    <section className="resolving-supports" aria-label="使用中のサポート">
+      <span className="resolving-supports-label">使用中</span>
+      <div className="resolving-supports-list">
+        {resolvingSupports.map(({ player, uid, card }) => (
+          <button
+            type="button"
+            key={uid}
+            className="resolving-support-card"
+            data-resolving-player={player}
+            aria-label={`${game.players[player].name}が使用中の${card.name}の詳細を表示`}
+            onClick={() =>
+              openCardPreview(card.id, [], game.uidToArtwork?.[uid])
+            }
+          >
+            <CardView
+              cardId={card.id}
+              artworkKey={game.uidToArtwork?.[uid]}
+              size="sm"
+              animationUid={uid}
+              animationZone="resolving"
+              className={actionClassFor(uid)}
+            />
+            <span className="resolving-support-name">
+              <strong>{card.name}</strong>
+              <span>{game.players[player].name}</span>
+            </span>
+            <MagnifyIcon />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+  // 専用の行は増やさず、選択中の案内と同じステータスバーへ収める。
+  // 使用確認や確定などの操作がある場合は、その説明・ボタンを残す。
+  const statusBarWithSupport =
+    statusBar && resolvingSupports.length > 0
+      ? cloneElement(
+          statusBar,
+          {
+            className: `${statusBar.props.className} resolving-status${passiveStatus ? " resolving-status-passive" : ""}`,
+          },
+          resolvingSupportContent,
+          passiveStatus ? null : statusBar.props.children,
+        )
+      : statusBar;
+
   // ---------------- 描画 ----------------
 
   return (
@@ -2847,7 +2907,7 @@ export function GameScreen({
         {compact && resolvingInfo && (
           <EffectResolutionGuide key={effectPromptKey} info={resolvingInfo} />
         )}
-        {statusContent()}
+        {statusBarWithSupport}
         {!spectator && (
           <HandArea
             me={me}

@@ -167,6 +167,8 @@ export interface EffectContextData {
   artRef?: { cardId: string; index: number };
   /** 発生源のサポートカードuid (「このカードをデッキに戻す」等が参照) */
   sourceCardUid?: string;
+  /** サポート本文で、正の枚数のドローか空でないデッキの検索を既に実行した。 */
+  supportChangedState?: boolean;
   /** トリガー元の付与サポートuid (「このツールを手札に戻す」等が参照) */
   sourceSupportUid?: string;
   /** 「能力追加」で付与先ホロメンが得た能力。サポートUIDは自身の移動等の参照用に残す。 */
@@ -193,6 +195,8 @@ export interface EffectContextData {
   }[];
   /** 能力終了のチェックタイミングまで、対象ごとのダウン原因を保持する。 */
   pendingRuleCauses?: Record<number, RuleDownCause>;
+  /** 能力のライフ減少を、能力終了後のルール処理まで保留する。 */
+  pendingLifeDamage?: [number, number];
   /** 実行中のアーツダメージ累積 (アーツ効果のみ) */
   artBonus?: number;
   /** chooseBind で選択したホロメンのスタックID (直近) */
@@ -225,12 +229,20 @@ export interface EffectContextData {
   revealed?: string[];
   /** revealed は「公開」ではなく使用者だけが「見た」非公開カード */
   revealedOwnerOnly?: boolean;
+  /** 使用者だけが見た場合、その閲覧者。解決担当が変わっても保持する。 */
+  revealedOwner?: PlayerId;
+  /** 移動・選択が完了した閲覧結果。現在の非公開位置とは結び付けない。 */
+  revealedHistory?: boolean;
   /** millDeck でアーカイブしたカードのuid */
   milled?: string[];
   /** 手札アーカイブを置換してアーカイブしたホロパワーのuid */
   replacementArchived?: string[];
   /** effectPickCard で選んで移動したカードのuid (「戻したホロメンX枚につき」等が参照) */
   pickedCards?: string[];
+  /** 選択したカードを公開せず、選択者だけが内容を知った履歴 */
+  pickedCardsOwnerOnly?: boolean;
+  /** 解決担当が変わっても、非公開選択を知ったプレイヤーは変わらない */
+  pickedCardsOwner?: PlayerId;
   /** bothHandToDeckBottom で両者がデッキに戻した枚数 [P0, P1] */
   returnedBoth?: [number, number];
   /** selfYellToCheerBottom でエールデッキに戻したエール枚数 */
@@ -451,6 +463,8 @@ export type Prompt =
         | "holoPower"
         | "archive"
         | "bloom";
+      /** 検索後に公開した札だけから手札へ移すものを選ぶ。 */
+      revealThenPick?: { n: number; restTo: "archive" };
       /** 選択したカード名を全プレイヤーへ公開する。false は選択者だけに表示 */
       revealSelection?: boolean;
       /** 選択中の候補すべてが公開情報 */
@@ -479,7 +493,7 @@ export type Prompt =
         | "stacked"
         | "downed";
       /** 解決後にシャッフルする山 */
-      shuffleAfter?: "deck" | "cheer";
+      shuffleAfter?: "deck" | "cheer" | "holo";
       /** cheerAssign用: 送付先の条件 */
       targetFilter?: TargetFilter;
       /** from=stageYells の場合のエール所持プレイヤー (省略時はplayer) */
@@ -657,6 +671,8 @@ export interface RuleDownAbility {
   sourceStackId?: number;
   sourceSupportUid?: string;
   ops: Op[];
+  /** ダウンさせたアーツの実ダメージ・超過量を、別能力の解決中も保持する。 */
+  artDownAbility?: RuleDownCause["artDownAbility"];
   /** 同名ギフト全体の制限。待機時ではなく選ばれた能力の解決開始時に消費する。 */
   sharedUseLimit?: { key: string; n: number };
   reactive?: {
@@ -675,10 +691,24 @@ export interface RuleDownCause {
   sourceStackId?: number;
   targetStackId?: number;
   noLifeTargetStackId?: number;
+  artDownAbility?: {
+    ops: Op[];
+    artName: string;
+    damage: number;
+    overkill: number;
+  };
 }
 
 /** 10.11.2 に従って適用順を選ぶ、被ダメージ時の置換効果1つ分。 */
 export type DamageReplacementChoice =
+  | {
+      id: string;
+      label: string;
+      kind: "artDamageOrder";
+      holderStackId: number;
+      order: "immunity" | "reductions";
+      description: string;
+    }
   | {
       id: string;
       label: string;
@@ -728,6 +758,8 @@ export interface RuleResolutionState {
   causes: Record<number, RuleDownCause>;
   /** 保留中のライフダメージ (11.5) */
   lifeDamage: [number, number];
+  /** 能力から保留したライフ送付の前に、致死対象のダウンを開始する。 */
+  downBeforeLife?: boolean;
   /** この一連のルール処理でライフが0になったプレイヤー */
   lifeDepleted: [boolean, boolean];
   current?: {
@@ -755,6 +787,8 @@ export interface GameState {
       pos: StagePosition;
       stack: HolomenStack;
       colors: Color[];
+      /** 離脱時の追加レベルも最終情報として保持する。 */
+      bloomLevels?: ("Debut" | "1st" | "2nd" | "Spot")[];
       cardIds: string[];
     }
   >;
@@ -765,6 +799,8 @@ export interface GameState {
   turn: number;
   turnPlayer: PlayerId;
   firstPlayer: PlayerId;
+  /** リセット中のルール処理から復元した際、アクティブ化・コラボ移動を繰り返さない。 */
+  resetActionsDoneTurn?: number;
   /** 各プレイヤーが開始したターン数 (8.3.2.1 の「各プレイヤーの最初のターン」判定用) */
   turnsStarted: [number, number];
   step: Step;
@@ -832,8 +868,8 @@ export interface GameState {
     once?: boolean;
     expiresTurn: number;
   }[];
-  /** リセットステップでお休みしないホロメン名 (プレイヤー別、ゲーム間有効) */
-  noRestResetNames: [string[], string[]];
+  /** 使用時に場にいてリセットでお休みしないホロメンのID (ゲーム中有効) */
+  noRestResetStackIds: [number[], number[]];
   /** 次のリセットステップでアクティブにならないホロメンのスタックID (適用時に消費) */
   skipResetActivate: number[];
   /** アーツ使用時のカード名と位置。移動・ダウン後も履歴条件を参照する。 */
@@ -849,6 +885,8 @@ export interface GameState {
   /** ターン中のダウン報酬 (「自分の(#tag)ホロメンが相手のセンターホロメンをダウンさせた時、相手のライフ-X」) */
   downRewards?: {
     player: PlayerId;
+    /** 同時に待機する別の付与効果を見分ける公開ラベル。旧保存では省略可。 */
+    sourceLabel?: string;
     tag?: string;
     /** ダウンさせた側のホロメンをこのスタックに限定 (「選んだホロメンが〜」) */
     stackId?: number;

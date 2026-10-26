@@ -169,21 +169,12 @@ export function selectableStackIds(
     );
   }
   if (prompt.type === "effectTarget") {
-    const ctx =
-      prompt.perspective === undefined
-        ? prompt.ctx
-        : { ...prompt.ctx, player: prompt.perspective };
     return new Set(
-      E.targetCandidates(game, ctx, prompt.target, prompt.filter)
+      E.effectTargetEntries(game, prompt)
         .filter(({ stack }) => {
           if (
             !prompt.damageAllocation &&
             prompt.chosen.some((chosen) => chosen.stackId === stack.id)
-          )
-            return false;
-          if (
-            prompt.eligibleStackIds &&
-            !prompt.eligibleStackIds.includes(stack.id)
           )
             return false;
           if (!prompt.distinctColors) return true;

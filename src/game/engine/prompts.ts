@@ -7,7 +7,7 @@ import type {
   Prompt,
   JankenHand,
 } from "../types";
-import { targetCandidates, stackColors, cardMatchesFilter } from "./conditions";
+import { stackColors, cardMatchesFilter } from "./conditions";
 import { cheerAssignCandidates } from "./costs";
 import { cardLogLabel, log, logPrivate } from "./logging";
 import {
@@ -27,6 +27,7 @@ import {
   isYellTransferOnlySupport,
   hasAttachTarget,
   effectAttachTargetError,
+  effectTargetEntries,
   resetAttachedCardUsage,
   finishIncomingDamageReplacement,
 } from "./resolution";
@@ -68,9 +69,15 @@ export function resolveTriggerAbilityChoice(
     prompt.player !== pid
   )
     throw new Error("現在この能力は選べません");
-  const selected = prompt.abilities.find((ability) => ability.id === id);
-  if (!selected) throw new Error("選んだ能力が見つかりません");
-  const remaining = prompt.abilities.filter((ability) => ability.id !== id);
+  const selectedIndex = prompt.abilities.findIndex(
+    (ability) => ability.id === id,
+  );
+  if (selectedIndex < 0) throw new Error("選んだ能力が見つかりません");
+  const selected = prompt.abilities[selectedIndex];
+  // 旧保存に同じIDの複数の誘発があっても、選んだ1件だけを解決する。
+  const remaining = prompt.abilities.filter(
+    (_, index) => index !== selectedIndex,
+  );
   s.prompts.shift();
   prompt.ctx.rest.unshift({
     t: "continueTriggerAbilities",
@@ -111,19 +118,7 @@ export function resolveEffectTarget(
     throw new Error("現在この操作はできません");
   const st = getStack(s.players[targetPlayer], pos);
   if (!st) throw new Error("そこにホロメンがいません");
-  const perspectiveCtx =
-    prompt.perspective !== undefined
-      ? { ...prompt.ctx, player: prompt.perspective }
-      : prompt.ctx;
-  const candidates = targetCandidates(
-    s,
-    perspectiveCtx,
-    prompt.target,
-    prompt.filter,
-  ).filter(
-    ({ stack }) =>
-      !prompt.eligibleStackIds || prompt.eligibleStackIds.includes(stack.id),
-  );
+  const candidates = effectTargetEntries(s, prompt);
   const entry = candidates.find(
     (e) => e.stack.id === st.id && e.player === targetPlayer,
   );
@@ -265,6 +260,40 @@ export function resolveEffectPickCard(
     throw new Error("現在この操作はできません");
   const selectionError = effectPickCardSelectionError(s, pid, prompt, uids);
   if (selectionError) throw new Error(selectionError);
+  if (prompt.revealThenPick) {
+    s.prompts.shift();
+    // まだデッキ内にある札を公開する。次の選択完了時にだけ移動する。
+    prompt.ctx.revealed = [...uids];
+    prompt.ctx.revealedOwner = pid;
+    prompt.ctx.revealedOwnerOnly = false;
+    prompt.ctx.revealedHistory = false;
+    if (uids.length) {
+      log(
+        s,
+        pid,
+        `${uids.map((uid) => cardLogLabel(s, uid)).join("、")}を公開しました`,
+      );
+      pushPrompt(s, {
+        type: "effectPickCard",
+        player: pid,
+        uids: [...uids],
+        pickMin: Math.min(prompt.revealThenPick.n, uids.length),
+        pickMax: Math.min(prompt.revealThenPick.n, uids.length),
+        dest: "hand",
+        restTo: prompt.revealThenPick.restTo,
+        from: "deck",
+        revealAll: true,
+        ctx: prompt.ctx,
+        shuffleAfter: prompt.shuffleAfter,
+      });
+    } else runOps(s, prompt.ctx);
+    advance(s);
+    return;
+  }
+  // 閲覧結果は選択後の条件用に残すが、移動先の現在位置を公開する参照にしない。
+  const finishesRevealed =
+    ["deck", "cheer", "holo"].includes(prompt.from) &&
+    prompt.ctx.revealed?.some((uid) => prompt.uids.includes(uid));
   if (prompt.orderOnly) {
     const p = s.players[pid];
     const zone =
@@ -278,6 +307,7 @@ export function resolveEffectPickCard(
       zone.splice(0, zone.length, ...remaining, ...uids);
     else zone.splice(0, zone.length, ...uids, ...remaining);
     s.prompts.shift();
+    if (finishesRevealed) prompt.ctx.revealedHistory = true;
     const zoneName =
       prompt.from === "cheer"
         ? "エールデッキ"
@@ -362,6 +392,7 @@ export function resolveEffectPickCard(
     }
   }
   s.prompts.shift();
+  if (finishesRevealed) prompt.ctx.revealedHistory = true;
 
   // 付与カードは成功まで元の領域に残す (5.17.3.4)。
   const attachSource: Extract<Prompt, { type: "effectAttach" }>["source"] =
@@ -760,10 +791,30 @@ export function resolveEffectPickCard(
   } else if (prompt.shuffleAfter === "cheer") {
     p.cheerDeck = shuffle(p.cheerDeck);
     log(s, pid, "エールデッキをシャッフルしました");
+  } else if (prompt.shuffleAfter === "holo") {
+    p.holoPower = shuffle(p.holoPower);
+    log(s, pid, "ホロパワーをシャッフルしました");
   }
 
   // 後続の「戻したホロメンX枚につき」等が参照できるよう選んだカードを記録
-  if (!prompt.preservePickedCards) prompt.ctx.pickedCards = [...movedUids];
+  if (!prompt.preservePickedCards) {
+    prompt.ctx.pickedCards = [...movedUids];
+    const fromPublic = [
+      "archive",
+      "stageYells",
+      "stageSupports",
+      "stacked",
+      "downed",
+    ].includes(prompt.from);
+    const publicSelection =
+      fromPublic ||
+      prompt.revealAll ||
+      (["deckTop", "deckBottom", "holoPower"].includes(prompt.dest)
+        ? prompt.revealSelection === true
+        : prompt.revealSelection !== false);
+    prompt.ctx.pickedCardsOwnerOnly = !publicSelection;
+    prompt.ctx.pickedCardsOwner = pid;
+  }
   // アーカイブ行きの選択は「アーカイブしたカード/エールX枚につき」の参照用に記録
   if (prompt.dest === "archive") prompt.ctx.milled = [...movedToArchiveUids];
   prompt.ctx.rest.unshift(

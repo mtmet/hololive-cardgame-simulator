@@ -102,7 +102,7 @@ export function createGame(
     downedUidsThisTurn: [[], []],
     downedUidsPrevTurn: [[], []],
     diceMods: [],
-    noRestResetNames: [[], []],
+    noRestResetStackIds: [[], []],
     skipResetActivate: [],
     artUsesThisTurn: [[], []],
     bloomedCardUidsThisTurn: [[], []],

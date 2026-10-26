@@ -5,6 +5,7 @@ import {
   parseEffect,
   parseBloomEffectUseLimit,
   parseOshiReactive,
+  parseOshiStageCollab,
 } from "../effects";
 import type { TriggerAbility, Op, TriggerDef, OshiReactive } from "../effects";
 import type {
@@ -18,6 +19,7 @@ import {
   giftOf,
   stackMatchesFilter,
   triggerFires,
+  attachedTriggerUseKey,
   matchesPosition,
   bloomRank,
   triggerDefOps,
@@ -185,7 +187,10 @@ export function collectOshiSkillUsedAbilities(
     const g = giftOf(topCard(s, e.stack));
     const key = `giftOshiSkill:${e.stack.cards[0]}`;
     for (const def of g.triggers) {
-      if (def.event !== event) continue;
+      // 12.1.2: SPは推しスキルの一種。SP限定の誘発とは区別しつつ、
+      // 「推しスキルを使った時」には通常・SPの両方を含める。
+      if (def.event !== event && !(sp && def.event === "oshiSkillUsed"))
+        continue;
       if (def.skillName && def.skillName !== skillName) continue;
       if (!triggerFires(s, pid, e.pos, def, key)) continue;
       logEffect(
@@ -464,18 +469,21 @@ export function collectBloomTriggerAbilities(
       );
     }
   }
-  if (bloomRank(nc.bloomLevel) > bloomRank(prevLevel))
-    abilities.push(
-      ...collectTriggerAbilities(
-        s,
-        {
-          player: pid,
-          pos: findStackById(s, st.id)?.pos ?? "center",
-          stack: st,
-        },
-        ["bloomLevelUp"],
-      ),
-    );
+  // Q113/Q140: 同レベルへのBloomも「Bloomした時」には含むが、
+  // 「Bloomレベルが上がった時」の条件には含めない。
+  abilities.push(
+    ...collectTriggerAbilities(
+      s,
+      {
+        player: pid,
+        pos: findStackById(s, st.id)?.pos ?? "center",
+        stack: st,
+      },
+      bloomRank(nc.bloomLevel) > bloomRank(prevLevel)
+        ? ["bloomed", "bloomLevelUp"]
+        : ["bloomed"],
+    ),
+  );
   return abilities.map((ability) => ({
     ...ability,
     // Bloomの誘発条件だけを引き継ぐ。Bloomさせた能力の選択先や
@@ -500,6 +508,20 @@ export function collectAllyCollabedAbilities(
 ): TriggerAbility[] {
   if (s.phase !== "playing") return [];
   const abilities: TriggerAbility[] = [];
+  const oshi = cardOf(s, s.players[pid].oshiUid) as OshiCard;
+  const stageSkill = oshi.stageOshiSkill;
+  const stageOps = stageSkill
+    ? parseOshiStageCollab(stageSkill.description)
+    : null;
+  if (stageOps?.length) {
+    const label = `推しステージスキル「${stageSkill!.name}」`;
+    logEffect(s, pid, `▶ ${label}が発動します`, label, { sourceOshi: true });
+    abilities.push({
+      id: `stageOshi:collab:${collabed.id}`,
+      label,
+      ops: stageOps,
+    });
+  }
   for (const e of allStacks(s.players[pid])) {
     if (e.stack.id === collabed.id) continue;
     const top = topCard(s, e.stack);
@@ -727,6 +749,7 @@ export function collectTriggerAbilities(
     art: boolean;
     artName?: string;
     revealed?: boolean;
+    revealedArchiveReplacement?: boolean;
   },
 ): TriggerAbility[] {
   const abilities: TriggerAbility[] = [];
@@ -739,8 +762,13 @@ export function collectTriggerAbilities(
     const c = cardOf(s, uid);
     if (c.cardType !== "support") continue;
     const b = passiveOf(c);
-    for (const def of b.triggers) {
+    for (const [abilityIndex, def] of b.triggers.entries()) {
       if (!events.includes(def.event)) continue;
+      if (
+        !!def.revealedArchiveReplacement !==
+        !!eventData?.revealedArchiveReplacement
+      )
+        continue;
       if (
         def.revealedByArt &&
         (!eventData?.revealed || eventData.artName !== def.revealedByArt)
@@ -759,16 +787,6 @@ export function collectTriggerAbilities(
         !def.attachedFromArchive
       )
         continue;
-      if (def.perfCond === "selfLifeReduced") {
-        const before = s.lifeAtPerfStart?.[entry.player];
-        if (
-          before === undefined ||
-          s.players[entry.player].life.length >= before
-        )
-          continue;
-      }
-      if (def.perfCond === "selfHpNotReduced" && entry.stack.damage > 0)
-        continue;
       if (def.requiresCond && !passiveCondMatches(s, entry.stack, b.cond))
         continue;
       if (def.subjectUsedArtThisTurn && !entry.stack.usedArtsThisTurn) continue;
@@ -778,7 +796,13 @@ export function collectTriggerAbilities(
       )
         continue;
       if (!downedPosOk(def)) continue;
-      if (!triggerFires(s, entry.player, entry.pos, def, uid)) continue;
+      const useKey = attachedTriggerUseKey(
+        entry.stack.id,
+        uid,
+        abilityIndex,
+        def.requiresCond,
+      );
+      if (!triggerFires(s, entry.player, entry.pos, def, useKey)) continue;
       logEffect(
         s,
         entry.player,
@@ -791,7 +815,7 @@ export function collectTriggerAbilities(
         label: `「${c.name}」の能力`,
         sourceStackId: entry.stack.id,
         sourceSupportUid: uid,
-        ops: triggerDefOps(def, uid, `「${c.name}」の能力`, [
+        ops: triggerDefOps(def, useKey, `「${c.name}」の能力`, [
           {
             t: "setSource",
             stackId: entry.stack.id,
@@ -809,6 +833,11 @@ export function collectTriggerAbilities(
     const giftKey = `gift:${entry.stack.cards[0]}`;
     for (const def of gift.triggers) {
       if (!events.includes(def.event)) continue;
+      if (
+        !!def.revealedArchiveReplacement !==
+        !!eventData?.revealedArchiveReplacement
+      )
+        continue;
       // 「公開した時」は、公開を辞退・実行できなかったアーツ使用では誘発しない。
       // 回数の消費と発動ログを出す前に、実際の公開を確認する。
       if (
@@ -822,16 +851,6 @@ export function collectTriggerAbilities(
           (!eventData || eventData.value < def.minDamage)) ||
           (def.artDamageOnly && !eventData?.art))
       )
-        continue;
-      if (def.perfCond === "selfLifeReduced") {
-        const before = s.lifeAtPerfStart?.[entry.player];
-        if (
-          before === undefined ||
-          s.players[entry.player].life.length >= before
-        )
-          continue;
-      }
-      if (def.perfCond === "selfHpNotReduced" && entry.stack.damage > 0)
         continue;
       if (def.selfBloomedFrom) {
         const under = entry.stack.cards[1]

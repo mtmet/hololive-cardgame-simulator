@@ -52,6 +52,13 @@ export function parseCardFilter(text: string): CardFilter | null {
       progress = true;
       continue;
     }
+    const gift = rest.match(/^ギフトを持つ、?(.*)$/);
+    if (gift) {
+      f.hasGift = true;
+      rest = gift[1];
+      progress = true;
+      continue;
+    }
     const collab = rest.match(/^コラボエフェクトを持つ、?(.*)$/);
     if (collab) {
       f.hasCollabEffect = true;
@@ -333,6 +340,13 @@ export function parseStackTarget(
     return { target: "allBoth" };
   if (/^相手のセンターホロメンとコラボホロメン$/.test(text))
     return { target: "allOppFront" };
+  {
+    const mf = text.match(/^相手の(.*?)\[センターホロメンとコラボホロメン\]$/);
+    if (mf) {
+      const filter = parseTargetFilterMods(mf[1]);
+      return filter !== null ? { target: "allOppFront", filter } : null;
+    }
+  }
   // 自分の(修飾)[センターホロメンとコラボホロメン]
   {
     const mf = text.match(/^自分の(.*?)\[センターホロメンとコラボホロメン\]$/);

@@ -111,6 +111,8 @@ export function parseCond(text: string): Cond | null {
         },
       };
   }
+  extra = text.match(/^選んだホロメンが((?:〈[^〉]+〉)+)$/);
+  if (extra) return { c: "boundIs", filter: { names: parseNames(extra[1]) } };
   extra = text.match(/^選んだホロメンがBuzzホロメンか2ndホロメン$/);
   if (extra)
     return {

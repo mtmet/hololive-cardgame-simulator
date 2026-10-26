@@ -119,6 +119,7 @@ import {
   playerName,
   stageCount,
   sourceHolomen,
+  isSupportAbilitySource,
 } from "./state";
 import {
   collectTriggerAbilities,
@@ -170,6 +171,7 @@ export function rememberHolomen(
     pos: structuredClone(pos),
     stack: snapshot,
     colors,
+    bloomLevels: stackBloomLevels(s, stack),
     cardIds,
   };
 }
@@ -247,74 +249,83 @@ export function advance(s: GameState): void {
         // 追加ターンがあるため、対局全体のターン数では判定できない。
         if (s.turnsStarted[s.turnPlayer] > 1) {
           const p = s.players[s.turnPlayer];
-          const resetOshi = cardOf(s, p.oshiUid) as OshiCard;
-          for (const { pos, stack } of allStacks(p)) {
-            if (
-              resetOshi.stageOshiSkill?.name === "Justiceの古代自動人形" &&
-              stackNames(s, stack).includes("セシリア・イマーグリーン")
-            ) {
-              log(
-                s,
-                s.turnPlayer,
-                positionedHolomenName(s, pos, stack) +
-                  "は推しステージスキルによりアクティブになりません",
-              );
-              continue;
-            }
-            // 「次の相手のリセットステップでアクティブにならない」効果 (消費型)
-            if (s.skipResetActivate.includes(stack.id)) {
-              log(
-                s,
-                s.turnPlayer,
-                `${positionedHolomenName(s, pos, stack)}は効果によりアクティブになりません`,
-              );
-              continue;
-            }
-            stack.resting = false;
-          }
-          s.skipResetActivate = s.skipResetActivate.filter(
-            (id) => !allStacks(p).some((e) => e.stack.id === id),
-          );
-          if (p.collab && !hasNoSwitch(s, p.collab)) {
-            // ギフト「(条件の時、)このホロメンはバックポジションに移動してもお休みしない」
-            const collabGift = giftOf(topCard(s, p.collab));
-            const giftNoRest =
-              !!collabGift.noRestOnMove &&
-              (!collabGift.noRestOnMove.cond ||
-                evalCond(
+          if (s.resetActionsDoneTurn !== s.turn) {
+            const resetOshi = cardOf(s, p.oshiUid) as OshiCard;
+            for (const { pos, stack } of allStacks(p)) {
+              if (
+                resetOshi.stageOshiSkill?.name === "Justiceの古代自動人形" &&
+                stackNames(s, stack).includes("セシリア・イマーグリーン")
+              ) {
+                log(
                   s,
-                  {
-                    player: s.turnPlayer,
-                    sourceStackId: p.collab.id,
-                    rest: [],
-                    label: "",
-                  },
-                  collabGift.noRestOnMove.cond,
-                ));
-            const noRest =
-              giftNoRest ||
-              s.noRestResetNames[s.turnPlayer].some((n) =>
-                stackNames(s, p.collab!).includes(n),
+                  s.turnPlayer,
+                  positionedHolomenName(s, pos, stack) +
+                    "は推しステージスキルによりアクティブになりません",
+                );
+                continue;
+              }
+              // 「次の相手のリセットステップでアクティブにならない」効果 (消費型)
+              if (s.skipResetActivate.includes(stack.id)) {
+                log(
+                  s,
+                  s.turnPlayer,
+                  `${positionedHolomenName(s, pos, stack)}は効果によりアクティブになりません`,
+                );
+                continue;
+              }
+              stack.resting = false;
+            }
+            s.skipResetActivate = s.skipResetActivate.filter(
+              (id) => !allStacks(p).some((e) => e.stack.id === id),
+            );
+            if (p.collab && !hasNoSwitch(s, p.collab)) {
+              // ギフト「(条件の時、)このホロメンはバックポジションに移動してもお休みしない」
+              const collabGift = giftOf(topCard(s, p.collab));
+              const giftNoRest =
+                !!collabGift.noRestOnMove &&
+                (!collabGift.noRestOnMove.cond ||
+                  evalCond(
+                    s,
+                    {
+                      player: s.turnPlayer,
+                      sourceStackId: p.collab.id,
+                      rest: [],
+                      label: "",
+                    },
+                    collabGift.noRestOnMove.cond,
+                  ));
+              const noRest =
+                giftNoRest ||
+                s.noRestResetStackIds[s.turnPlayer].includes(p.collab.id);
+              p.back.push(p.collab);
+              // 「お休みしない」は新たにお休みにする処理を省略するだけ。
+              // ドッキリうさぎ等でアクティブにならなかった場合は、元の状態を保つ。
+              if (!noRest) p.collab.resting = true;
+              p.collab = null;
+              log(
+                s,
+                s.turnPlayer,
+                noRest
+                  ? "コラボホロメンをバックに移動しました (能力によりお休みしない)"
+                  : "コラボホロメンをバックに移動してお休みさせました",
               );
-            p.back.push(p.collab);
-            // 「お休みしない」は新たにお休みにする処理を省略するだけ。
-            // ドッキリうさぎ等でアクティブにならなかった場合は、元の状態を保つ。
-            if (!noRest) p.collab.resting = true;
-            p.collab = null;
-            log(
-              s,
-              s.turnPlayer,
-              noRest
-                ? "コラボホロメンをバックに移動しました (能力によりお休みしない)"
-                : "コラボホロメンをバックに移動してお休みさせました",
-            );
+            }
+            if (p.collab && hasNoSwitch(s, p.collab))
+              log(
+                s,
+                s.turnPlayer,
+                "コラボホロメンは効果によりバックへ移動できません",
+              );
+            s.resetActionsDoneTurn = s.turn;
           }
-          if (p.collab && hasNoSwitch(s, p.collab))
-            log(
-              s,
-              s.turnPlayer,
-              "コラボホロメンは効果によりバックへ移動できません",
-            );
+          // 7.2.5: 期限切れで最大HPが下がった場合も、センター選択・手札ステップ前に処理する。
+          // 入力待ちから戻っても、上のアクティブ化とコラボ移動は一度だけ。
+          runOps(s, {
+            player: s.turnPlayer,
+            rest: [{ t: "checkRuleTiming" }],
+            label: "リセットステップのチェックタイミング",
+          });
+          if (s.phase !== "playing" || s.prompts.length > 0) return;
           if (!p.center && p.back.length > 0) {
             if (!pickCenter(s, s.turnPlayer, "reset")) return;
           }
@@ -874,14 +885,6 @@ export function emitAllyPlayed(
     runOps(s, { player: pid, rest: ops, label: "登場時能力" });
 }
 
-/** 「能力追加」で得た能力の発生源は付与先ホロメン (5.19.1)。 */
-function isSupportAbilitySource(s: GameState, ctx: EffectContextData): boolean {
-  if (ctx.sourceSupportUid) return !ctx.grantedSupportAbility;
-  return (
-    !!ctx.sourceCardUid && cardOf(s, ctx.sourceCardUid).cardType === "support"
-  );
-}
-
 /**
  * ホロメンの能力でエールをアーカイブした時、チェックタイミングまで誘発を
  * 待機させる。エールの持ち主ではなく、能力の使用者と発生源で
@@ -993,18 +996,20 @@ export function canBloomOnto(
   return { ok: true };
 }
 
-/** 味方が相手をダウンさせた時の板面ギフトトリガー */
-function emitAllyDownedOpponentOps(
+/** 味方が相手をダウンさせた時のギフトも、保持者ごとに解決順を選ぶ。 */
+function collectAllyDownedOpponentAbilities(
   s: GameState,
   pid: PlayerId,
   subject: HolomenStack | null,
-): Op[] {
+  downedStackId: number,
+): RuleDownAbility[] {
   if (!subject) return [];
-  const ops: Op[] = [];
+  const abilities: RuleDownAbility[] = [];
   for (const e of allStacks(s.players[pid])) {
-    const g = giftOf(topCard(s, e.stack));
+    const top = topCard(s, e.stack);
+    const g = giftOf(top);
     const key = `giftAllyDownedOpponent:${e.stack.cards[0]}`;
-    for (const def of g.triggers) {
+    for (const [index, def] of g.triggers.entries()) {
       if (def.event !== "allyDownedOpponent") continue;
       if (
         def.subjectFilter &&
@@ -1012,13 +1017,16 @@ function emitAllyDownedOpponentOps(
       )
         continue;
       if (!triggerFires(s, pid, e.pos, def, key)) continue;
-      ops.push(
-        { t: "setSource", stackId: e.stack.id },
-        ...(structuredClone(def.ops) as Op[]),
-      );
+      abilities.push({
+        id: `allyDownedOpponent:${downedStackId}:${e.stack.id}:${index}`,
+        player: pid,
+        label: `ギフト「${top.gift?.name ?? ""}」(${positionedHolomenName(s, e.pos, e.stack)})`,
+        sourceStackId: e.stack.id,
+        ops: structuredClone(def.ops) as Op[],
+      });
     }
   }
-  return ops;
+  return abilities;
 }
 
 function emitSupportAttached(
@@ -1176,6 +1184,86 @@ function supportBindCandidates(
       matchesPosition(entry.pos, op.filter?.position)
     );
   });
+}
+
+/** 同じ指示で各1人を選ぶ場合、後の選択も含めて可能な人数を保つ。 */
+function maximalBindCandidates<T extends { stack: HolomenStack }>(
+  s: GameState,
+  ctx: EffectContextData,
+  op: Pick<Extract<Op, { t: "chooseBind" }>, "count" | "countFrom" | "append">,
+  candidates: T[],
+): T[] {
+  if (op.countFrom || (op.count ?? 1) !== 1) return candidates;
+  const chosen = new Set(op.append ? (ctx.boundStackIds ?? []) : []);
+  const following: number[][] = [];
+  for (const next of ctx.rest) {
+    if (
+      next.t !== "chooseBind" ||
+      !next.append ||
+      next.countFrom ||
+      (next.count ?? 1) !== 1
+    )
+      break;
+    following.push(
+      supportBindCandidates(s, ctx.player, next)
+        .map((stack) => stack.id)
+        .filter((id) => !chosen.has(id)),
+    );
+  }
+  if (!following.length) return candidates;
+  // 複数名の同一ホロメンは1枠だけを埋められる。前の割り当ても組み直して数える。
+  const maximum = (groups: number[][]): number => {
+    const assigned = new Map<number, number>();
+    const assign = (group: number, visited: Set<number>): boolean => {
+      for (const id of groups[group]) {
+        if (visited.has(id)) continue;
+        visited.add(id);
+        const previous = assigned.get(id);
+        if (previous === undefined || assign(previous, visited)) {
+          assigned.set(id, group);
+          return true;
+        }
+      }
+      return false;
+    };
+    for (let i = 0; i < groups.length; i++) assign(i, new Set());
+    return assigned.size;
+  };
+  const required = maximum([
+    candidates.map(({ stack }) => stack.id),
+    ...following,
+  ]);
+  return candidates.filter(
+    ({ stack }) =>
+      1 +
+        maximum(
+          following.map((group) => group.filter((id) => id !== stack.id)),
+        ) >=
+      required,
+  );
+}
+
+/** 保存時の候補も現在の束縛列に照合し、入力・CPU・画面で同じ対象を使う。 */
+export function effectTargetEntries(
+  s: GameState,
+  prompt: Extract<Prompt, { type: "effectTarget" }>,
+) {
+  const ctx =
+    prompt.perspective === undefined
+      ? prompt.ctx
+      : { ...prompt.ctx, player: prompt.perspective };
+  const entries = targetCandidates(s, ctx, prompt.target, prompt.filter).filter(
+    ({ stack }) =>
+      !prompt.eligibleStackIds || prompt.eligibleStackIds.includes(stack.id),
+  );
+  return prompt.apply.t === "bind" && prompt.chosen.length === 0
+    ? maximalBindCandidates(
+        s,
+        ctx,
+        { count: prompt.count, append: true },
+        entries,
+      )
+    : entries;
 }
 
 function supportTargetExists(
@@ -1375,7 +1463,47 @@ function supportBoundTargetCanChangeState(
       )
     );
   }
-  return true;
+  // 10.7.2.3.7: 選ぶだけでは状態変化にならない。対象に依存する
+  // 回復や固定の特殊ダメージなら、ダメージの有無や確定した保護・免疫・軽減まで確認する。
+  // 任意防御の支払い・未対応の後続効果を、確定した不発とは判断しない。
+  const entry = findStackById(s, stack.id);
+  const ctx: EffectContextData = {
+    player: pid,
+    boundStackId: stack.id,
+    boundStackIds: [stack.id],
+    rest: [],
+    label: "",
+  };
+  const pending: Op[] = [...remaining];
+  let changes = false;
+  let checkedTargetEffect = false;
+  while (pending.length > 0) {
+    const op = pending.shift()!;
+    if (op.t === "if" || op.t === "ifElse") {
+      const match = evalCond(s, ctx, op.cond);
+      pending.unshift(...(match ? op.then : op.t === "ifElse" ? op.else : []));
+    } else if (
+      op.t === "special" &&
+      op.target === "bound" &&
+      !op.dmgFrom &&
+      !op.scaleBy &&
+      !op.includeOppCenter
+    ) {
+      checkedTargetEffect = true;
+      if (
+        entry &&
+        !isProtectedFrom(s, entry, pid) &&
+        !isSpecialImmune(s, entry, pid) &&
+        !(entry.player !== pid && isDamageImmune(s, entry)) &&
+        calculateSpecialDamage(s, ctx, entry, { t: "special", dmg: op.dmg }) > 0
+      )
+        changes = true;
+    } else if (op.t === "heal" && op.target === "bound") {
+      checkedTargetEffect = true;
+      if (op.value !== 0 && stack.damage > 0) changes = true;
+    } else return true;
+  }
+  return !checkedTargetEffect || changes;
 }
 
 /** 回復が空振りしても、同じ対象への後続のアーカイブエール送付が可能か。 */
@@ -1477,11 +1605,29 @@ function swapCenterCandidates(
     );
 }
 
+/** 1回の確定出目に対する条件。合計と両者ライフの比較は呼び出し側で扱う。 */
+function diceBranchMatches(
+  cond: DiceOp["branches"][number]["cond"],
+  roll: number,
+  life: number,
+): boolean {
+  if (cond === "eqBothLife") return false;
+  if (cond === "odd") return roll % 2 === 1;
+  if (cond === "even") return roll % 2 === 0;
+  if (cond === "geLife") return roll >= life;
+  if (cond === "leLife") return roll <= life;
+  if ("perValue" in cond) return Math.floor(roll / cond.perValue) > 0;
+  if ("eq" in cond) return cond.eq.includes(roll);
+  if ("ne" in cond) return !cond.ne.includes(roll);
+  return "ge" in cond ? roll >= cond.ge : roll <= cond.le;
+}
+
 function supportOpsCanChangeState(
   s: GameState,
   pid: PlayerId,
   ops: Op[],
   sourceStackId?: number,
+  isSupport = false,
 ): boolean {
   const p = s.players[pid];
   for (let i = 0; i < ops.length; i++) {
@@ -1505,6 +1651,17 @@ function supportOpsCanChangeState(
       continue;
     if (op.t === "draw") {
       if (p.deck.length > 0 && op.n > 0) return true;
+      continue;
+    }
+    if (op.t === "turnThirdArtBackTarget") {
+      // 固定の特殊ダメージが無効でも、後続の対象拡張が有効なら使える。
+      // 受け手がいない拡張だけで、空振りするサポートを使用可能にしない。
+      if (
+        allStacks(p).some(({ stack }) =>
+          op.names.some((name) => stackNames(s, stack).includes(name)),
+        )
+      )
+        return true;
       continue;
     }
     if (op.t === "holoPowerFromDeck") {
@@ -1556,8 +1713,14 @@ function supportOpsCanChangeState(
           pid,
           [...op.cost, ...op.then],
           sourceStackId,
+          isSupport,
         )
       )
+        return true;
+      continue;
+    }
+    if (op.t === "stageYellToCheerBottom") {
+      if (op.n > 0 && allStacks(p).some(({ stack }) => stack.yells.length > 0))
         return true;
       continue;
     }
@@ -1652,10 +1815,43 @@ function supportOpsCanChangeState(
     }
     if (op.t === "dice") {
       if (op.sumArtPlus || op.aggOdd) return true;
-      if (
-        op.branches.some((branch) =>
-          supportOpsCanChangeState(s, pid, branch.ops, sourceStackId),
+      const rolls = op.rolls ?? 1;
+      const mods =
+        isSupport && !op.rollsFrom
+          ? diceModifiersFor(s, pid, rolls, "(サポート)", false)
+          : [];
+      // ランダムな出目は予測せず、確定した全出目の修正だけを使用可否に反映する。
+      // Q552: 後続を実行できなければ、サイコロだけを振るサポートは使えない。
+      // 1回限りの修正や、適用順によって結果が変わる修正は不発と断定しない。
+      const fixed =
+        mods.length > 0 &&
+        mods.every(
+          (mod) =>
+            !mod.once &&
+            !mod.double &&
+            mod.value !== undefined &&
+            mod.value === mods[0].value,
         )
+          ? mods[0].value
+          : undefined;
+      if (
+        op.branches.some((branch) => {
+          if (fixed !== undefined) {
+            const matches =
+              branch.cond === "eqBothLife"
+                ? fixed * rolls ===
+                  p.life.length + s.players[other(pid)].life.length
+                : diceBranchMatches(branch.cond, fixed, p.life.length);
+            if (!matches) return false;
+          }
+          return supportOpsCanChangeState(
+            s,
+            pid,
+            branch.ops,
+            sourceStackId,
+            isSupport,
+          );
+        })
       )
         return true;
       continue;
@@ -1668,15 +1864,21 @@ function supportOpsCanChangeState(
       );
       const branch = op.t === "ifElse" ? (cond ? op.then : op.else) : op.then;
       if (cond || op.t === "ifElse") {
-        if (supportOpsCanChangeState(s, pid, branch, sourceStackId))
+        if (supportOpsCanChangeState(s, pid, branch, sourceStackId, isSupport))
           return true;
       }
       continue;
     }
     if (op.t === "chooseOps") {
       if (
-        supportOpsCanChangeState(s, pid, op.thenOps, sourceStackId) ||
-        supportOpsCanChangeState(s, pid, op.elseOps, sourceStackId)
+        supportOpsCanChangeState(
+          s,
+          pid,
+          op.thenOps,
+          sourceStackId,
+          isSupport,
+        ) ||
+        supportOpsCanChangeState(s, pid, op.elseOps, sourceStackId, isSupport)
       )
         return true;
       continue;
@@ -2019,7 +2221,13 @@ export function canPlaySupport(
     );
     if (
       !changesByCost &&
-      !supportOpsCanChangeState(effectState, s.turnPlayer, program.ops)
+      !supportOpsCanChangeState(
+        effectState,
+        s.turnPlayer,
+        program.ops,
+        undefined,
+        true,
+      )
     )
       return {
         ok: false,
@@ -2060,8 +2268,13 @@ export function canAttachSupportFromHand(
 /** ステージ外から付け直したカードは新しい能力の発生源となる (4.1.4)。 */
 export function resetAttachedCardUsage(s: GameState, uid: string): void {
   const activatedPrefix = `giftActivated:support:${uid}:`;
+  const triggeredPrefix = `giftTriggered:support:${uid}:`;
   for (const key of Object.keys(s.usedTriggersThisTurn))
-    if (key === uid || key.startsWith(activatedPrefix))
+    if (
+      key === uid ||
+      key.startsWith(activatedPrefix) ||
+      key.startsWith(triggeredPrefix)
+    )
       delete s.usedTriggersThisTurn[key];
 }
 
@@ -2216,10 +2429,13 @@ function giftActivatedReason(
     return "この能力の使用条件を満たしていません";
   if (!activatedCostPayable(s, pid, entry.stack, ab.ops))
     return "能力のコストを支払えません";
-  // 10.7.2.3.7: 解決してもゲーム状態を変えられない能力は使用できない。
-  // (使えるたびに何も起きない能力が残ると、選び続けてターンが進まなくなる)
-  if (!supportOpsCanChangeState(s, pid, ab.ops, entry.stack.id))
-    return "この効果で変更できるカードや状態がありません";
+  // 永続能力による特別なBloomの操作は、実際にBloomできる組み合わせが必要。
+  // 起動能力そのものには、サポートのプレイだけを制限する10.7.2.3.7を適用しない。
+  if (
+    ab.ops.every((op) => op.t === "effectBloom") &&
+    !supportOpsCanChangeState(s, pid, ab.ops, entry.stack.id)
+  )
+    return "この効果でBloomできるホロメンがいません";
   return null;
 }
 
@@ -2268,8 +2484,6 @@ function attachActivatedReason(
       : "この能力はこのターンの使用回数上限に達しています";
   if (!activatedCostPayable(s, pid, entry.stack, ab.ops, supportUid))
     return "能力のコストを支払えません";
-  if (!supportOpsCanChangeState(s, pid, ab.ops, entry.stack.id))
-    return "この効果で変更できるカードや状態がありません";
   return null;
 }
 
@@ -2418,8 +2632,42 @@ export function usableArts(
     fromPos === "center" ? p.usedCenterArtThisTurn : p.usedCollabArtThisTurn;
   if (!st || st.resting || st.usedArtsThisTurn || positionUsed) return [];
   return availableArts(s, st)
-    .map((a, i) => (canPayArtCost(s, st, a.cost, a.description) ? i : -1))
+    .map((_, i) => (canUseArt(s, s.turnPlayer, fromPos, i).ok ? i : -1))
     .filter((i) => i >= 0);
+}
+
+/** 相手の永続能力による対象制限。効果による対象変更にも適用する (1.3.3)。 */
+function opponentArtTargetError(
+  s: GameState,
+  pid: PlayerId,
+  pos: StagePosition,
+): string | null {
+  if (pos !== "collab") {
+    const opponent = other(pid);
+    const opp = s.players[opponent];
+    for (const entry of allStacks(opp)) {
+      const taunt = giftOf(topCard(s, entry.stack)).taunt;
+      if (!taunt) continue;
+      if (!giftPositionOk(entry.pos, taunt.positions)) continue;
+      if (
+        taunt.cond &&
+        !evalCond(
+          s,
+          {
+            player: opponent,
+            sourceStackId: entry.stack.id,
+            rest: [],
+            label: "",
+          },
+          taunt.cond,
+        )
+      )
+        continue;
+      if (opp.collab)
+        return `相手のギフト「${topCard(s, entry.stack).gift?.name ?? ""}」により、アーツはコラボホロメンしか対象にできません`;
+    }
+  }
+  return null;
 }
 
 /** アーツの通常の対象制限を満たすか。初回使用と再使用で共通化する。 */
@@ -2478,32 +2726,7 @@ export function artTargetError(
     if (!extendOk) return "このアーツは相手のバックホロメンを対象にできません";
   }
 
-  if (target.pos !== "collab") {
-    const opponent = other(pid);
-    const opp = s.players[opponent];
-    for (const entry of allStacks(opp)) {
-      const taunt = giftOf(topCard(s, entry.stack)).taunt;
-      if (!taunt) continue;
-      if (!giftPositionOk(entry.pos, taunt.positions)) continue;
-      if (
-        taunt.cond &&
-        !evalCond(
-          s,
-          {
-            player: opponent,
-            sourceStackId: entry.stack.id,
-            rest: [],
-            label: "",
-          },
-          taunt.cond,
-        )
-      )
-        continue;
-      if (opp.collab)
-        return `相手のギフト「${topCard(s, entry.stack).gift?.name ?? ""}」により、アーツはコラボホロメンしか対象にできません`;
-    }
-  }
-  return null;
+  return opponentArtTargetError(s, pid, target.pos);
 }
 
 export function legalArtTargets(
@@ -2602,7 +2825,7 @@ export function recordArtUse(
   });
 }
 
-/** アーツ1回分の Op 列を構築する (効果 → artDamage → ダメージ後効果 → 再使用確認) */
+/** アーツ1回分のOp列を構築し、ダウン時の処理・与ダメージ時の自動能力を記録する。 */
 export function buildArtOps(
   s: GameState,
   art: HolomenCard["arts"][number],
@@ -2611,17 +2834,19 @@ export function buildArtOps(
 ): Op[] {
   const ops: Op[] = [];
   const afterDamage: Op[] = [];
+  const downedOps: Op[] = [];
   if (art.description) {
     const program = parseEffect(art.description);
     if (program) {
-      // 「このアーツでダウンさせた時」「与えたダメージにつき」等はダメージ適用後に評価する
+      // ダウン時能力は11.3.1.1へ渡す。与ダメージ時の回復は、
+      // 他の待機能力と順序を選べる自動能力としてダメージ処理へ渡す。
       // 位置ヘッダはアーツ本体の使用制限ではなく、本文の効果の発揮条件。
-      // ダウン後へ送る効果も含め、今回アーツを使った位置で判定する。
+      // ダウン時に解決する効果も含め、今回アーツを使った位置で判定する。
       const positionOk =
         !program.positions ||
         program.positions.some((pos) => matchesPosition(fromPos, pos));
       for (const op of positionOk ? program.ops : []) {
-        if (op.t === "if" && op.cond.c === "artDowned") afterDamage.push(op);
+        if (op.t === "if" && op.cond.c === "artDowned") downedOps.push(op);
         else if (op.t === "healSelfPerArtDealt") afterDamage.push(op);
         else ops.push(op);
       }
@@ -2639,8 +2864,9 @@ export function buildArtOps(
     specialDmg: parseInt(art.special_attack.power ?? "0", 10) || 0,
     targetStackId: target.id,
     artName: art.name,
+    downedOps: downedOps.length ? downedOps : undefined,
+    dealtOps: afterDamage.length ? afterDamage : undefined,
   });
-  ops.push(...afterDamage);
   ops.push({ t: "repeatArtCheck" });
   return ops;
 }
@@ -2672,6 +2898,7 @@ function resetArtTransientContext(
 ): void {
   ctx.sourceStackId = sourceStackId;
   ctx.sourceCardUid = undefined;
+  ctx.supportChangedState = undefined;
   ctx.sourceSupportUid = undefined;
   ctx.grantedSupportAbility = undefined;
   ctx.artTargetStackId = targetStackId;
@@ -2679,6 +2906,7 @@ function resetArtTransientContext(
   ctx.artNoReduce = undefined;
   ctx.specialDamageBatch = undefined;
   ctx.pendingRuleCauses = undefined;
+  ctx.pendingLifeDamage = undefined;
   ctx.artBonus = 0;
   ctx.boundStackId = undefined;
   ctx.boundStackIds = undefined;
@@ -2694,9 +2922,13 @@ function resetArtTransientContext(
   ctx.artDiceSum = undefined;
   ctx.revealed = undefined;
   ctx.revealedOwnerOnly = undefined;
+  ctx.revealedOwner = undefined;
+  ctx.revealedHistory = undefined;
   ctx.milled = undefined;
   ctx.replacementArchived = undefined;
   ctx.pickedCards = undefined;
+  ctx.pickedCardsOwnerOnly = undefined;
+  ctx.pickedCardsOwner = undefined;
   ctx.returnedBoth = undefined;
   ctx.returnedYell = undefined;
   ctx.healed = undefined;
@@ -2726,6 +2958,7 @@ function incomingDamageReplacementChoices(
     attacker: PlayerId;
     diceDone: number[];
     replacementDone: string[];
+    artOrder?: { raw: number; reduced: number; firstReduction: number };
   },
 ): DamageReplacementChoice[] {
   const defender = target.player;
@@ -2778,6 +3011,49 @@ function incomingDamageReplacementChoices(
   // 軽減不可でも身代わりやエール付け替えは使える (5.22.3.1)。
   // 以下のサポート・ギフトはダメージの軽減/無効化なので候補にしない。
   if (o.noReduce) return choices;
+
+  const immunity = giftOf(topCard(s, target.stack)).noArtDamageAtLeast;
+  const order = o.artOrder;
+  if (
+    immunity &&
+    order &&
+    order.raw >= immunity.n &&
+    order.reduced > 0 &&
+    (order.firstReduction > 0 || order.reduced < immunity.n) &&
+    evalCond(
+      s,
+      { player: defender, sourceStackId: target.stack.id, rest: [], label: "" },
+      immunity.cond,
+    )
+  ) {
+    // 5.22.4 / 10.11.2: 閾値による無効も、受けるダメージの置換。
+    // 数値の軽減より常に後にすると、初回軽減を温存する順序を選べない。
+    const name = topCard(s, target.stack).gift?.name ?? "";
+    choices.push(
+      {
+        id: `artOrder:${target.stack.id}:immunity`,
+        kind: "artDamageOrder",
+        holderStackId: target.stack.id,
+        order: "immunity",
+        label: `ギフト「${name}」を先に適用`,
+        description:
+          `${immunity.n}以上のアーツダメージを先に受けなくします。` +
+          (order.firstReduction > 0 ? "最初の一撃の軽減は残ります。" : ""),
+      },
+      {
+        id: `artOrder:${target.stack.id}:reductions`,
+        kind: "artDamageOrder",
+        holderStackId: target.stack.id,
+        order: "reductions",
+        label:
+          order.firstReduction > 0
+            ? `最初のアーツダメージ-${order.firstReduction}を先に適用`
+            : "ダメージ軽減を先に適用",
+        description:
+          "先にダメージを軽減し、その後の値でギフトの無効化条件を確認します。",
+      },
+    );
+  }
 
   if (s.turnPlayer !== defender) {
     for (const uid of target.stack.supports) {
@@ -2879,6 +3155,42 @@ export function offerIncomingDamageReplacement(
   choice: DamageReplacementChoice,
   ctx: EffectContextData,
 ): void {
+  if (choice.kind === "artDamageOrder") {
+    const pending = pendingIncomingDamage(ctx);
+    if (!pending || pending.t !== "artDamage")
+      throw new Error("適用順を選ぶアーツがありません");
+    pending.thresholdOrderResolved = true;
+    if (choice.order === "immunity") pending.negate = true;
+    else {
+      const target = findStackById(s, pending.targetStackId);
+      const sourceId = ctx.artSourceStackId ?? ctx.sourceStackId;
+      const source = sourceId ? findStackById(s, sourceId) : null;
+      if (target) {
+        const calculated = calculateArtDamage(
+          s,
+          ctx,
+          pending,
+          target,
+          source,
+          false,
+        );
+        if (calculated.damage > 0 && calculated.firstMods.length > 0) {
+          const reduce = calculated.firstMods.reduce(
+            (sum, mod) => sum + mod.firstArtDamageReduce!,
+            0,
+          );
+          s.turnModifiers = s.turnModifiers.filter(
+            (mod) => !calculated.firstMods.includes(mod),
+          );
+          pending.extraReduce = (pending.extraReduce ?? 0) + reduce;
+          log(s, defender, `効果により受けるアーツダメージ-${reduce}`);
+        }
+      }
+    }
+    finishIncomingDamageReplacement(ctx, choice.id);
+    runOps(s, ctx);
+    return;
+  }
   if (choice.kind === "backSpecialShield") {
     pushPrompt(s, {
       type: "effectConfirm",
@@ -3025,15 +3337,30 @@ function reduceIncomingDamage(
 
 type DamageTarget = NonNullable<ReturnType<typeof findStackById>>;
 
+/** 受ける側の軽減・免疫と、アーツの対象に対する特攻・条件を区別する。 */
+function originalArtDamageTarget(
+  s: GameState,
+  op: Extract<Op, { t: "artDamage" }>,
+  recipient: DamageTarget,
+): DamageTarget | null {
+  return op.originalTargetStackId === undefined
+    ? recipient
+    : findStackById(s, op.originalTargetStackId);
+}
+
 function artDamageIgnoresReduction(
   s: GameState,
   ctx: EffectContextData,
-  target: DamageTarget,
+  target: DamageTarget | null,
   src: DamageTarget | null,
 ) {
   // 付与サポートの「このホロメンのアーツダメージは軽減されない」
   let noReduce = !!ctx.artNoReduce;
-  if (src && giftOf(topCard(s, src.stack)).artNoReduceArchiveTargetColor) {
+  if (
+    src &&
+    target &&
+    giftOf(topCard(s, src.stack)).artNoReduceArchiveTargetColor
+  ) {
     const targetColors = stackColors(s, target.stack);
     noReduce = s.players[src.player].archive.some((uid) => {
       const c = cardOf(s, uid);
@@ -3078,10 +3405,12 @@ function calculateArtDamage(
   let damage = op.base + (ctx.artBonus ?? 0);
   if (src) damage += artBonusOf(s, src.stack);
   let specialApplied = false;
+  const artTarget = originalArtDamageTarget(s, op, target);
+  const targetColors = artTarget ? stackColors(s, artTarget.stack) : [];
   if (
     op.specialColor &&
     op.specialDmg > 0 &&
-    stackColors(s, target.stack).includes(op.specialColor)
+    targetColors.includes(op.specialColor)
   ) {
     damage += op.specialDmg;
     specialApplied = true;
@@ -3093,7 +3422,7 @@ function calculateArtDamage(
         tm.stackId === src.stack.id &&
         tm.specialAttack &&
         (tm.expiresTurn ?? s.turn) >= s.turn &&
-        stackColors(s, target.stack).includes(tm.specialAttack.color)
+        targetColors.includes(tm.specialAttack.color)
       ) {
         damage += tm.specialAttack.value;
         specialApplied = true;
@@ -3123,16 +3452,14 @@ function calculateArtDamage(
   const reduced = noReduce ? 0 : (op.extraReduce ?? 0);
   if (reduced > 0) damage = Math.max(0, damage - reduced);
   // 「最初に受けるアーツダメージ-X」のターン修正 (消費型)
-  const firstMods = noReduce
-    ? []
-    : s.turnModifiers.filter(
-        (tm) =>
-          tm.stackId === target.stack.id &&
-          tm.firstArtDamageReduce !== undefined &&
-          turnEffectActive(s, tm) &&
-          (!tm.firstArtDamagePos ||
-            matchesPosition(target.pos, tm.firstArtDamagePos)),
-      );
+  const firstMods = s.turnModifiers.filter(
+    (tm) =>
+      tm.stackId === target.stack.id &&
+      tm.firstArtDamageReduce !== undefined &&
+      turnEffectActive(s, tm) &&
+      (!tm.firstArtDamagePos ||
+        matchesPosition(target.pos, tm.firstArtDamagePos)),
+  );
   return { damage, specialApplied, taken, reduced, firstMods };
 }
 
@@ -3170,6 +3497,7 @@ function calculateSpecialDamage(
   ctx: EffectContextData,
   entry: DamageTarget,
   apply: Extract<Prompt, { type: "effectTarget" }>["apply"] & { t: "special" },
+  beforeReduction = false,
 ) {
   // 発生源の「与える特殊ダメージ+X」パッシブ
   let dealtPlus = 0;
@@ -3241,13 +3569,21 @@ function calculateSpecialDamage(
         dealtPlus += tm.specialPlus;
     }
   }
+  // 情報を参照する軽減条件には最終情報を使う。場を離れた付属・ギフトは復活させない。
+  const sourceInfo =
+    srcEntry ??
+    (ctx.sourceStackId ? s.lastKnownHolomen?.[ctx.sourceStackId] : null);
   const taken = damageTakenDeltaOf(s, entry, {
     art: false,
-    source: srcEntry,
+    source: sourceInfo,
+    noReduce: beforeReduction,
   });
   const dmg = Math.max(
     0,
-    apply.dmg + dealtPlus + taken - (apply.extraReduce ?? 0),
+    apply.dmg +
+      dealtPlus +
+      taken -
+      (beforeReduction ? 0 : (apply.extraReduce ?? 0)),
   );
   return dmg;
 }
@@ -3278,14 +3614,19 @@ export function incomingDamageInfo(
     );
     let damage = 0;
     if (op.t === "artDamage") {
-      const noReduce = artDamageIgnoresReduction(s, ctx, target, src);
+      const noReduce = artDamageIgnoresReduction(
+        s,
+        ctx,
+        originalArtDamageTarget(s, op, target),
+        src,
+      );
       const immune =
         !noReduce &&
         target.player !== ctx.player &&
         (isDamageImmune(s, target) || isArtImmune(s, target));
       const calculated = calculateArtDamage(s, ctx, op, target, src, noReduce);
       damage = calculated.damage;
-      if (damage > 0)
+      if (damage > 0 && !noReduce)
         damage = Math.max(
           0,
           damage -
@@ -3342,6 +3683,7 @@ function interceptIncomingDamage(
     defer: () => void;
     diceDone: number[];
     replacementDone: string[];
+    artOrder?: { raw: number; reduced: number; firstReduction: number };
   },
 ): boolean {
   // 「ダメージを受ける時」はQ227の確定時に発揮する。被弾後に回すと
@@ -3387,6 +3729,7 @@ function interceptIncomingDamage(
     attacker: o.attacker,
     diceDone: o.diceDone,
     replacementDone: o.replacementDone,
+    artOrder: o.artOrder,
   });
   if (choices.length === 0) return false;
 
@@ -3440,6 +3783,7 @@ function recordSpecialDamage(
   entry: { player: PlayerId; pos: StagePosition; stack: HolomenStack },
   damage: number,
   noLife?: boolean,
+  opponentTargetCount = 1,
 ) {
   log(
     s,
@@ -3457,6 +3801,7 @@ function recordSpecialDamage(
     targetPlayer: entry.player,
     targetPos: entry.pos,
     damage,
+    opponentTargetCount,
   });
   deferRuleDown(ctx, {
     player: ctx.player,
@@ -3482,6 +3827,19 @@ export function applyToStack(
   const targetName = `${posLabel(entry.pos)}の${name}`;
   switch (apply.t) {
     case "special": {
+      // Q365: 人数等から決めた基本値へ加算してから0を判定する。
+      // 軽減で0になる一撃には、防御の選択機会を残す。
+      if (
+        apply.dmg <= 0 &&
+        calculateSpecialDamage(s, ctx, entry, apply, true) <= 0
+      ) {
+        log(
+          s,
+          ctx.player,
+          `${ctx.label}: ダメージが0のため効果は発揮されません`,
+        );
+        break;
+      }
       const specialCombat = {
         kind: "special" as const,
         sourceStackId: ctx.sourceStackId,
@@ -3518,7 +3876,14 @@ export function applyToStack(
       // (公式Q158: 「ダメージ」はアーツダメージ・特殊ダメージの両方を指す。
       //  公式Q55 は〈ベスティア・ゼータ〉のギフトを特殊ダメージへ使う前提)。
       // アーツダメージと同じく、確認を挟む間はダメージ適用を保留する。
-      if (!apply.interruptChecked && !apply.negate) {
+      if (
+        !apply.interruptChecked &&
+        !apply.negate &&
+        // 1.3.2.2: 選択・適用済みの軽減で0になった事象に追加防御は使えない。
+        // 未選択の常時軽減は先に確定せず、置換効果の適用順は残す。
+        calculateSpecialDamage(s, ctx, entry, apply, true) >
+          (apply.extraReduce ?? 0)
+      ) {
         const diceDone = [...(apply.diceReduceDone ?? [])];
         const replacementDone = [...(apply.replacementDone ?? [])];
         // applyToStack から return しても呼び出し元の runOps は残りのopを進めて
@@ -3544,6 +3909,7 @@ export function applyToStack(
           // 防御の入力待ち中にチェックタイミングへ進み、誘発を二重に解決する。
           ctx.pendingTriggers = undefined;
           ctx.pendingRuleCauses = undefined;
+          ctx.pendingLifeDamage = undefined;
           ctx.specialDamageBatch = undefined;
         };
         if (
@@ -3635,7 +4001,7 @@ export function applyToStack(
       break;
     case "toDeckBottom": {
       const ownerP = s.players[entry.player];
-      queueYellArchivedReactive(s, ctx, entry.stack.yells);
+      // 付属エールの退場時アーカイブは11.4.1のルール処理。能力によるアーカイブではない。
       const yellAbilities =
         entry.stack.yells.length > 0
           ? collectYellArchivedTriggerAbilities(s, entry.player)
@@ -3698,6 +4064,8 @@ export function applyToStack(
       );
       break;
     case "changeArtTarget": {
+      const restriction = opponentArtTargetError(s, ctx.player, entry.pos);
+      if (restriction) throw new Error(restriction);
       const pending = ctx.rest.find(
         (candidate): candidate is Extract<Op, { t: "artDamage" }> =>
           candidate.t === "artDamage",
@@ -4061,19 +4429,19 @@ export function resolveReactiveSkill(
         prompt.reduce ?? 0,
         prompt.reduceAll,
       );
-    } else if (prompt.ops) {
-      prompt.ctx.rest.unshift(...(structuredClone(prompt.ops) as Op[]));
     }
-    // スキル使用時のギフトも、スキル本文で発生する能力と同じ待機列へ置く。
-    // 個別の発生源はrunTriggerAbilityが復元するため、スキル本文へ持ち越さない。
-    const abilities = collectOshiSkillUsedAbilities(
-      s,
-      pid,
-      !!prompt.sp,
-      prompt.skillName,
+    // 位置条件を使用宣言時に固定せず、本文を解決した盤面で誘発させる。
+    prompt.ctx.rest.unshift(
+      ...(prompt.kind !== "reduce" && prompt.ops
+        ? (structuredClone(prompt.ops) as Op[])
+        : []),
+      {
+        t: "emitOshiSkillUsed",
+        player: pid,
+        sp: !!prompt.sp,
+        name: prompt.skillName,
+      },
     );
-    if (abilities.length)
-      (prompt.ctx.pendingTriggers ??= []).push({ player: pid, abilities });
   } else {
     log(s, pid, `「${prompt.skillName}」の使用を見送りました`);
   }
@@ -4094,18 +4462,7 @@ function attachCheerDirect(
   const isChoice = target === "chooseOwnFront";
   if (!singleTargets.includes(target) && !isChoice) return false;
   const candidates = targetCandidates(s, ctx, target, filter);
-  if (candidates.length === 0) {
-    // 対象がいなければアーカイブへ
-    s.players[ctx.player].archive.push(yellUid);
-    queueYellArchivedReactive(s, ctx, [yellUid]);
-    ctx.rest.unshift(...collectYellArchivedTriggerOps(s, ctx.player));
-    log(
-      s,
-      ctx.player,
-      `${ctx.label}: 送り先がいないためエールをアーカイブしました`,
-    );
-    return true;
-  }
+  if (candidates.length === 0) return false;
   if (isChoice && candidates.length > 1) return false; // 複数候補は選択させる
   const { pos, stack: st } = candidates[0];
   st.yells.push(yellUid);
@@ -4152,6 +4509,8 @@ function specialScaleCount(
 ): number {
   const p = s.players[ctx.player];
   switch (scale.kind) {
+    case "stageYell":
+      return stageYellCount(s, ctx.player);
     case "stageTagDistinct":
       return distinctHolomenNameCount(
         s,
@@ -4361,7 +4720,8 @@ function abortEffectRest(ctx: EffectContextData): void {
       op.t === "artDamage" ||
       op.t === "checkRuleTiming" ||
       op.t === "resume" ||
-      op.t === "finishSupportCard",
+      op.t === "finishSupportCard" ||
+      op.t === "emitOshiSkillUsed",
   );
   ctx.rest.splice(0, boundary < 0 ? ctx.rest.length : boundary);
 }
@@ -4374,6 +4734,7 @@ function captureTriggerContexts(
     rest: _rest,
     pendingTriggers: _pending,
     pendingRuleCauses: _causes,
+    pendingLifeDamage: _life,
     specialDamageBatch: _batch,
     ...eventContext
   } = ctx;
@@ -4466,17 +4827,68 @@ function millCountChoice(
   };
 }
 
+/** 枚数指定と全手札のアーカイブで、同じ肩代わりの選択を提示する。 */
+function offerHandArchiveReplacement(
+  s: GameState,
+  ctx: EffectContextData,
+  op: Extract<Op, { t: "archiveHand" }>,
+  declined: Op = { ...op, replacementChecked: true },
+): boolean {
+  if (op.replacementChecked || op.n === 0) return false;
+  const replacement = archiveHandHoloReplacement(s, ctx, op);
+  if (!replacement) return false;
+  const minHolo = archiveHandMinHoloForReplacement(
+    s,
+    ctx,
+    op,
+    archiveHandEligible(s, ctx.player, op),
+    replacement.maxHolo,
+  );
+  if (minHolo === null) return false;
+  pushPrompt(s, {
+    type: "effectConfirm",
+    player: ctx.player,
+    label: `推しスキル「${replacement.skillName}」で手札のかわりにホロパワーをアーカイブしますか？`,
+    thenOps: [
+      { t: "markOshiSkillUsed", name: replacement.skillName },
+      {
+        t: "archiveHoloPowerAny",
+        min: minHolo,
+        max: replacement.maxHolo,
+        forHandReplacement: true,
+      },
+      {
+        t: "archiveRemainingHand",
+        total: op.n,
+        original: { ...op, replacementChecked: true },
+      },
+      {
+        t: "emitOshiSkillUsed",
+        player: ctx.player,
+        sp: false,
+        name: replacement.skillName,
+      },
+    ],
+    elseOps: [declined],
+    ctx,
+  });
+  return true;
+}
+
 export function runOps(s: GameState, ctx: EffectContextData): void {
   while (
     ctx.rest.length > 0 ||
     (ctx.pendingTriggers?.length ?? 0) > 0 ||
-    ctx.pendingRuleCauses !== undefined
+    ctx.pendingRuleCauses !== undefined ||
+    ctx.pendingLifeDamage !== undefined
   ) {
     if (s.phase !== "playing") return;
     // 入力待ちや部分処理の途中では解決せず、能力の終わりで待機能力を処理する。
     // resume先へ戻る前と、次のアーツを再使用する前にもチェックが必要。
     if (
-      (ctx.pendingTriggers?.length || ctx.pendingRuleCauses) &&
+      (ctx.pendingTriggers?.length ||
+        ctx.pendingRuleCauses ||
+        ctx.pendingLifeDamage) &&
       (!ctx.rest.length ||
         ctx.rest[0].t === "resume" ||
         ctx.rest[0].t === "repeatArtCheck")
@@ -4547,7 +4959,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         }
         const owner = s.players[e.player];
         owner.hand.push(...e.stack.cards);
-        queueYellArchivedReactive(s, ctx, e.stack.yells);
+        // 付属エールの退場時アーカイブは11.4.1のルール処理。能力によるアーカイブではない。
         const abilities = e.stack.yells.length
           ? collectYellArchivedTriggerAbilities(s, e.player)
           : [];
@@ -4565,6 +4977,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             defer: true,
           });
         ctx.pickedCards = [...e.stack.cards];
+        ctx.pickedCardsOwnerOnly = false;
+        ctx.pickedCardsOwner = ctx.player;
         break;
       }
       case "bothRefreshArchive": {
@@ -4660,6 +5074,12 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           p.hand.push(op.fromBottom ? p.deck.pop()! : p.deck.shift()!);
           n++;
         }
+        if (
+          n > 0 &&
+          ctx.sourceCardUid &&
+          cardOf(s, ctx.sourceCardUid).cardType === "support"
+        )
+          ctx.supportChangedState = true;
         logDraw(s, ctx.player, `${ctx.label}: ${n}枚ドローしました`, n);
         break;
       }
@@ -4689,6 +5109,12 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           oppP.hand.push(oppP.deck.shift()!);
           n++;
         }
+        if (
+          n > 0 &&
+          ctx.sourceCardUid &&
+          cardOf(s, ctx.sourceCardUid).cardType === "support"
+        )
+          ctx.supportChangedState = true;
         logDraw(
           s,
           other(ctx.player),
@@ -4721,7 +5147,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         break;
       case "stageYellToCheerBottom": {
         const uids = allStacks(p).flatMap(({ stack }) => stack.yells);
-        if (uids.length < op.n) {
+        if (op.cost && uids.length < op.n) {
           log(
             s,
             ctx.player,
@@ -4730,12 +5156,16 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           abortEffectRest(ctx);
           break;
         }
+        // 1.3.2: 通常効果の不足は、その移動だけを可能な限り行う。
+        // 「戻したなら」やコロン前のコストは、解析時に cost を指定する。
+        const count = Math.min(op.n, uids.length);
+        if (count <= 0) break;
         pushPrompt(s, {
           type: "effectPickCard",
           player: ctx.player,
           uids,
-          pickMin: op.n,
-          pickMax: op.n,
+          pickMin: count,
+          pickMax: count,
           dest: "cheerDeck",
           restTo: "none",
           from: "stageYells",
@@ -4835,6 +5265,10 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
                               : (ctx.revealed ?? []).filter(
                                   (u) => cardOf(s, u).cardType === "support",
                                 ).length;
+        if (op.per === "archiveFilter")
+          count = p.archive.filter((uid) =>
+            cardMatchesFilter(s, ctx.player, uid, op.countFilter ?? {}),
+          ).length;
         if (op.max !== undefined) count = Math.min(count, op.max);
         if (op.holoPowerCount) count = p.holoPower.length;
         if (op.milledSupportCount)
@@ -4904,6 +5338,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const revealed = p.deck.slice(0, n);
         ctx.revealed = revealed;
         ctx.revealedOwnerOnly = !!op.ownerOnly;
+        ctx.revealedOwner = ctx.player;
+        ctx.revealedHistory = false;
         const names =
           n > 0
             ? ` (${revealed.map((u) => cardLogLabel(s, u)).join("、")})`
@@ -4923,6 +5359,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const revealed = p.holoPower.slice(0, n);
         ctx.revealed = revealed;
         ctx.revealedOwnerOnly = false;
+        ctx.revealedOwner = ctx.player;
+        ctx.revealedHistory = false;
         log(
           s,
           ctx.player,
@@ -4931,6 +5369,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         break;
       }
       case "revealedTo": {
+        ctx.revealedHistory = true;
         // ホロパワーから公開したカードをホロパワーの下に戻す
         if (op.dest === "holoBottom") {
           const movableH = (ctx.revealed ?? []).filter((u) =>
@@ -4950,6 +5389,51 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         // ctx.revealed 自体は後続の条件参照 (revealedSome等) のため保持する
         const movable = (ctx.revealed ?? []).filter((u) => p.deck.includes(u));
         if (movable.length === 0) break;
+        if (
+          op.dest === "archive" &&
+          !op.replacementChecked &&
+          ctx.artIndex !== undefined
+        ) {
+          const source = findStackById(
+            s,
+            ctx.artSourceStackId ?? ctx.sourceStackId ?? -1,
+          );
+          const abilities =
+            source && source.player === ctx.player
+              ? collectTriggerAbilities(
+                  s,
+                  source,
+                  ["artUsed"],
+                  undefined,
+                  undefined,
+                  undefined,
+                  {
+                    ...artTriggerEventData(ctx, 0),
+                    revealedArchiveReplacement: true,
+                  },
+                )
+              : [];
+          if (abilities.length) {
+            ctx.rest.unshift({ ...op, replacementChecked: true });
+            // 元の公開結果・待機能力は親に残す。置換のために独立した
+            // チェックタイミングを挟まず、選択後に未移動の公開札を処理する。
+            const context = captureTriggerContexts(ctx, abilities)[0]
+              .eventContext!;
+            runOps(s, {
+              ...structuredClone(context),
+              sourceSupportUid: undefined,
+              grantedSupportAbility: undefined,
+              sourceCardUid: undefined,
+              originOshiSkill: undefined,
+              rest: [
+                ...abilities.flatMap((ability) => structuredClone(ability.ops)),
+                { t: "resume", inner: ctx },
+              ],
+              label: abilities[0].label,
+            });
+            return;
+          }
+        }
         if (
           op.orderMatters &&
           movable.length > 1 &&
@@ -5066,14 +5550,6 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const oppP = s.players[other(ctx.player)];
         const yells = oppP.center?.yells.length ?? 0;
         const dmg = op.per * yells;
-        if (dmg <= 0) {
-          log(
-            s,
-            ctx.player,
-            `${ctx.label}: 相手センターにエールがないため効果なし`,
-          );
-          break;
-        }
         ctx.rest.unshift({ t: "special", dmg, target: op.target });
         break;
       }
@@ -5127,12 +5603,27 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           op.max ?? p.holoPower.length,
           p.holoPower.length,
         );
+        // 10.7.2.4: 支払う枚数を決定してから、非公開のカードをまとめて移す。
+        // 途中で1枚ずつ公開すると、その内容を見てXや範囲コストを変更できてしまう。
+        if (op.min < limit) {
+          pushPrompt(s, {
+            type: "effectConfirm",
+            player: ctx.player,
+            label: `ホロパワーを${op.min + 1}枚以上アーカイブしますか？（いいえ：${op.min}枚）`,
+            thenOps: [{ ...op, min: op.min + 1 }],
+            elseOps: [{ ...op, max: op.min }],
+            ctx,
+          });
+          return;
+        }
         const archived = p.holoPower.splice(0, op.min);
         p.archive.push(...archived);
         ctx.pickedCards = [
           ...(op.accumulate ? (ctx.pickedCards ?? []) : []),
           ...archived,
         ];
+        ctx.pickedCardsOwnerOnly = false;
+        ctx.pickedCardsOwner = ctx.player;
         // Xコストの実支払いを、枚数比例と「N枚以上」の条件へ引き継ぐ。
         ctx.milled = [...ctx.pickedCards];
         if (op.forHandReplacement) {
@@ -5143,25 +5634,6 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           ctx.milled = [...ctx.replacementArchived];
         }
         log(s, ctx.player, `ホロパワーの上から${op.min}枚をアーカイブしました`);
-        const additional = limit - op.min;
-        if (additional > 0 && p.holoPower.length > 0) {
-          pushPrompt(s, {
-            type: "effectConfirm",
-            player: ctx.player,
-            label: "さらにホロパワーを上から1枚アーカイブしますか？",
-            thenOps: [
-              {
-                t: "archiveHoloPowerAny",
-                min: 1,
-                max: additional,
-                accumulate: true,
-                forHandReplacement: op.forHandReplacement,
-              },
-            ],
-            ctx,
-          });
-          return;
-        }
         break;
       }
       case "archiveRemainingHand": {
@@ -5208,6 +5680,17 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         queueFxWaitMarker(s, "oshiSkill");
         break;
       }
+      case "emitOshiSkillUsed": {
+        const abilities = collectOshiSkillUsedAbilities(
+          s,
+          op.player,
+          op.sp,
+          op.name,
+        );
+        if (abilities.length)
+          (ctx.pendingTriggers ??= []).push({ player: op.player, abilities });
+        break;
+      }
       case "markOncePerGameUsed": {
         const used = (s.usedEffectsOncePerGame ??= [[], []])[ctx.player];
         if (!used.includes(op.key)) used.push(op.key);
@@ -5251,10 +5734,14 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
       case "devolve":
       case "turnNoSwitch":
       case "setHp": {
-        if (op.t === "special" && op.scaleBy && op.scaleMax !== undefined) {
+        if (
+          op.t === "special" &&
+          op.scaleBy &&
+          (op.scaleMax !== undefined || op.scaleBy.kind === "stageYell")
+        ) {
           op.dmg *= Math.min(
             specialScaleCount(s, ctx, op.scaleBy),
-            op.scaleMax,
+            op.scaleMax ?? Number.POSITIVE_INFINITY,
           );
           op.scaleBy = undefined;
         }
@@ -5481,21 +5968,51 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
                             : op.t === "turnAllColors"
                               ? ({ t: "turnAllColors" } as const)
                               : ({ t: "setHp", value: op.value } as const);
-        if (apply.t === "special" && apply.dmg <= 0) {
-          log(
-            s,
-            ctx.player,
-            `${ctx.label}: ダメージが0のため効果は発揮されません`,
-          );
-          break;
-        }
         if (apply.t === "heal" && apply.value === 0) break;
+        const restrictSupportTargets =
+          (apply.t === "heal" || apply.t === "special") &&
+          op.target.startsWith("choose") &&
+          !ctx.supportChangedState &&
+          !!ctx.sourceCardUid &&
+          cardOf(s, ctx.sourceCardUid).cardType === "support";
         const candidates = targetCandidates(
           s,
           ctx,
           op.target,
           "filter" in op ? op.filter : undefined,
-        );
+        ).filter((entry) => {
+          if (!restrictSupportTargets) return true;
+          const boundEffect: Op =
+            apply.t === "heal"
+              ? { t: "heal", target: "bound", value: apply.value }
+              : ({ ...op, target: "bound" } as Op);
+          return supportBoundTargetCanChangeState(s, ctx.player, entry.stack, [
+            boundEffect,
+            ...ctx.rest,
+          ]);
+        });
+        if (apply.t === "special" && apply.dmg <= 0) {
+          const damageTargets = [...candidates];
+          const center = s.players[other(ctx.player)].center;
+          if (apply.includeOppCenter && center)
+            damageTargets.push({
+              player: other(ctx.player),
+              pos: "center",
+              stack: center,
+            });
+          if (
+            !damageTargets.some(
+              (entry) => calculateSpecialDamage(s, ctx, entry, apply, true) > 0,
+            )
+          ) {
+            log(
+              s,
+              ctx.player,
+              `${ctx.label}: ダメージが0のため効果は発揮されません`,
+            );
+            break;
+          }
+        }
         if (
           candidates.length === 0 &&
           !(
@@ -5528,6 +6045,9 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
               apply,
               chosen: [],
               damageAllocation: true,
+              eligibleStackIds: restrictSupportTargets
+                ? candidates.map((entry) => entry.stack.id)
+                : undefined,
               ctx,
             });
             return;
@@ -5567,6 +6087,9 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             filter: "filter" in op ? op.filter : undefined,
             apply,
             chosen: [],
+            eligibleStackIds: restrictSupportTargets
+              ? candidates.map((entry) => entry.stack.id)
+              : undefined,
             ctx,
           });
           return; // 中断
@@ -5620,9 +6143,12 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
               (e) => !(ctx.boundStackIds ?? []).includes(e.stack.id),
             )
           : allCandidates;
-        const candidates =
+        const candidates = maximalBindCandidates(
+          s,
+          ctx,
+          op,
           ctx.sourceCardUid &&
-          cardOf(s, ctx.sourceCardUid).cardType === "support"
+            cardOf(s, ctx.sourceCardUid).cardType === "support"
             ? boundCandidates.filter(({ stack }) =>
                 supportBoundTargetCanChangeState(
                   s,
@@ -5631,7 +6157,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
                   ctx.rest,
                 ),
               )
-            : boundCandidates;
+            : boundCandidates,
+        );
         // 前回の選択をリセット (複数 chooseBind の混在防止。append指定時は追加束縛)
         if (!op.append) {
           ctx.boundStackId = undefined;
@@ -5795,7 +6322,9 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           type: "effectPickCard",
           player: ctx.player,
           uids: pool,
-          pickMin: 1,
+          // 10.7.2.3.5: 未公開のデッキからは、同名・レベル・HP等の条件を
+          // 満たすカードがあっても選ばず、後続の効果へ進める。
+          pickMin: op.source === "deck" ? 0 : 1,
           pickMax: 1,
           dest: "bloom",
           restTo: "none",
@@ -6010,6 +6539,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         }
         (s.downRewards ??= []).push({
           player: ctx.player,
+          sourceLabel: ctx.label,
           tag: op.tag,
           stackId,
           anyHolomen: op.anyHolomen,
@@ -6115,6 +6645,15 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const candidates = targetCandidates(s, ctx, "chooseOppBack");
         if (candidates.length === 0) {
           log(s, ctx.player, `${ctx.label}: 相手のバックホロメンがいません`);
+          break;
+        }
+        const restriction = opponentArtTargetError(
+          s,
+          ctx.player,
+          candidates[0].pos,
+        );
+        if (restriction) {
+          log(s, ctx.player, `${ctx.label}: ${restriction}`);
           break;
         }
         if (op.optional) {
@@ -6537,7 +7076,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         }
         const owner = s.players[entry.player];
         const cards = [...entry.stack.cards];
-        queueYellArchivedReactive(s, ctx, entry.stack.yells);
+        // 付属エールの退場時アーカイブは11.4.1のルール処理。能力によるアーカイブではない。
         const yellAbilities =
           entry.stack.yells.length > 0
             ? collectYellArchivedTriggerAbilities(s, entry.player)
@@ -6568,6 +7107,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         if (cards.length <= 1) {
           owner.deck.push(...cards);
           ctx.pickedCards = [...cards];
+          ctx.pickedCardsOwnerOnly = false;
+          ctx.pickedCardsOwner = ctx.player;
           log(
             s,
             entry.player,
@@ -6744,12 +7285,14 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             ctx.player,
             op.thenOps,
             ctx.sourceStackId,
+            true,
           );
           const elseUsable = supportOpsCanChangeState(
             s,
             ctx.player,
             op.elseOps,
             ctx.sourceStackId,
+            true,
           );
           if (!thenUsable || !elseUsable) {
             if (thenUsable) ctx.rest.unshift(...op.thenOps);
@@ -6888,7 +7431,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const matches = p.cheerDeck.filter((u) =>
           cardMatchesFilter(s, ctx.player, u, filter),
         );
-        if (matches.length === 0) {
+        // 色などに合う候補の有無を、非公開のエールデッキ外へ伝えない。
+        if (p.cheerDeck.length === 0) {
           log(
             s,
             ctx.player,
@@ -7607,22 +8151,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
                 matched.push(...(structuredClone(br.ops) as Op[]));
               continue;
             }
-            const hit =
-              br.cond === "odd"
-                ? roll % 2 === 1
-                : br.cond === "even"
-                  ? roll % 2 === 0
-                  : br.cond === "geLife"
-                    ? roll >= p.life.length
-                    : br.cond === "leLife"
-                      ? roll <= p.life.length
-                      : "eq" in br.cond
-                        ? br.cond.eq.includes(roll)
-                        : "ne" in br.cond
-                          ? !br.cond.ne.includes(roll)
-                          : "ge" in br.cond
-                            ? roll >= br.cond.ge
-                            : roll <= br.cond.le;
+            const hit = diceBranchMatches(br.cond, roll, p.life.length);
             if (hit) {
               if (br.countBased) branchCounts[branchIndex]++;
               else matched.push(...(structuredClone(br.ops) as Op[]));
@@ -7791,7 +8320,9 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const matches = p.deck.filter((u) =>
           cardMatchesFilter(s, ctx.player, u, searchFilter),
         );
-        if (matches.length === 0) {
+        // 候補数は非公開情報。候補0でも、選ばず終える場合と同じ入力を経由する。
+        // 公開されているデッキ枚数が0の場合だけ、検索を即座に終えてよい。
+        if (p.deck.length === 0) {
           log(
             s,
             ctx.player,
@@ -7809,6 +8340,13 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           shuffleAfterSearch();
           break;
         }
+        // 空でない非公開デッキの検索は、0枚を選んでも後続のシャッフルまで行う。
+        // 先に状態を変えたサポートの後続対象を、効果なしだけを理由に除外しない。
+        if (
+          ctx.sourceCardUid &&
+          cardOf(s, ctx.sourceCardUid).cardType === "support"
+        )
+          ctx.supportChangedState = true;
         let searchTf: TargetFilter | undefined;
         if (op.dest === "attach") {
           if (op.attachTargetFilter) searchTf = op.attachTargetFilter;
@@ -7826,6 +8364,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             ? 0
             : Math.min(op.nMax, matches.length, stageCapacity),
           dest: op.dest,
+          revealThenPick: op.revealThenPick,
           restTo: "none",
           from: "deck",
           // 「公開し」を伴わない検索は、加えたカードの名称を相手に見せない
@@ -7858,10 +8397,25 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const revealBonus =
           op.source === "deck" && op.revealAll ? revealCountBonus(s, ctx) : 0;
         const n = Math.min(baseN + revealBonus, zone.length);
-        if (n === 0) break;
         const top = zone.slice(0, n);
         ctx.revealed = [...top];
         ctx.revealedOwnerOnly = !op.revealAll;
+        ctx.revealedOwner = ctx.player;
+        ctx.revealedHistory = false;
+        if (n === 0) {
+          // Q751: 見る／加える処理ができなくても、本文末尾のシャッフルは必須。
+          // 通常は選択プロンプトの解決時に行うが、0枚なら入力なしで実行する。
+          if (op.rest === "shuffle")
+            ctx.rest.unshift({
+              t:
+                op.source === "cheer"
+                  ? "shuffleCheer"
+                  : op.source === "holo"
+                    ? "shuffleHolo"
+                    : "shuffleDeck",
+            });
+          break;
+        }
         const pickable = top.filter((u) =>
           cardMatchesFilter(s, ctx.player, u, op.pickFilter),
         );
@@ -7925,12 +8479,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
               : op.source === "cheer"
                 ? "cheer"
                 : "holo",
-          shuffleAfter:
-            op.rest === "shuffle"
-              ? op.source === "cheer"
-                ? "cheer"
-                : "deck"
-              : undefined,
+          shuffleAfter: op.rest === "shuffle" ? op.source : undefined,
           targetFilter: op.pickTargetFilter,
           ctx,
         });
@@ -7964,6 +8513,20 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
       }
       case "archiveHandAll": {
         const n = p.hand.length;
+        if (
+          offerHandArchiveReplacement(
+            s,
+            ctx,
+            {
+              t: "archiveHand",
+              n,
+              requireFullPayment: true,
+              replacementChecked: op.replacementChecked,
+            },
+            { ...op, replacementChecked: true },
+          )
+        )
+          return;
         ctx.milled = [...p.hand];
         p.archive.push(...p.hand);
         p.hand = [];
@@ -7997,10 +8560,13 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
       }
       case "revealOppHand": {
         const oppP = s.players[other(ctx.player)];
-        const names = oppP.hand.map((u) => cardOf(s, u).name).join("、");
+        const names = oppP.hand.map((u) => cardLogLabel(s, u)).join("、");
         // 「その中に〜があるなら」を後続の条件が参照できるようにする
         // (記録していないと revealedSome が常に false になる)
         ctx.revealed = [...oppP.hand];
+        ctx.revealedOwnerOnly = true;
+        ctx.revealedOwner = ctx.player;
+        ctx.revealedHistory = true;
         logPrivate(
           s,
           ctx.player,
@@ -8059,10 +8625,6 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         }
         const baton = batonCostOf(s, target.stack);
         const dmg = Math.floor(baton / op.per) * op.dmg;
-        if (dmg <= 0) {
-          log(s, ctx.player, `${ctx.label}: バトンコスト0のためダメージなし`);
-          break;
-        }
         applyToStack(s, ctx, target, { t: "special", dmg });
         break;
       }
@@ -8277,7 +8839,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const candidates = p.back.filter(
           (stack) => !op.filter || stackMatchesFilter(s, stack, op.filter),
         );
-        if (candidates.length < op.n) {
+        if (op.cost && candidates.length < op.n) {
           log(
             s,
             ctx.player,
@@ -8286,11 +8848,14 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           abortEffectRest(ctx);
           break;
         }
+        // 1.3.2: 必須の帰還が不可能でも、独立した後続の強化は解決する。
+        const count = Math.min(op.n, candidates.length);
+        if (count <= 0) break;
         pushPrompt(s, {
           type: "effectTarget",
           player: ctx.player,
           target: "chooseOwnBack",
-          count: op.n,
+          count,
           filter: op.filter,
           apply: { t: "toDeckBottom" },
           chosen: [],
@@ -8402,11 +8967,11 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         return;
       }
       case "lifeMinus": {
-        loseLife(s, ctx.player, op.n);
+        loseLife(s, ctx.player, op.n, ctx);
         break;
       }
       case "oppLifeMinus": {
-        loseLifeByOppAbility(s, other(ctx.player), op.n);
+        loseLifeByOppAbility(s, other(ctx.player), op.n, ctx);
         break;
       }
       case "artDiceParityBranch": {
@@ -8437,9 +9002,11 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         break;
       }
       case "continueRuleProcessing": {
+        // アーツ後の誘発を収集し終えてから、再開コンテキストをルール処理へ渡す。
+        // 渡した同じctxを演出待ちでも進めると、JSON復元で共有参照が切れて分岐する。
+        if (!s.ruleResolution || ctx.pendingRuleCauses)
+          beginRuleProcessing(s, ctx);
         if (s.ruleResolution) {
-          // ダウン時能力の特殊ダメージで生じた次のダウンにも発生源を残す。
-          if (ctx.pendingRuleCauses) beginRuleProcessing(s, ctx);
           // ダウン中のスキルやライフ送付で誘発した能力は、ルール処理後に解決する。
           if (
             (ctx.downedStackId !== undefined || op.deferTriggers) &&
@@ -8639,10 +9206,20 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           runTriggerAbility(s, ctx, playable[0]);
           return;
         }
+        // 同じ能力でも、別の事象で誘発した待機は別々に選ぶ。
+        // 入れ子の解決から同じIDが合流した場合だけ、選択肢ごとに区別する。
+        const distinctIds = new Set(playable.map((ability) => ability.id));
+        const choices =
+          distinctIds.size === playable.length
+            ? playable
+            : playable.map((ability, index) => ({
+                ...ability,
+                id: `${ability.id}:pending:${index}`,
+              }));
         pushPrompt(s, {
           type: "triggerAbilityChoice",
           player: ctx.player,
-          abilities: playable,
+          abilities: choices,
           ctx,
         });
         return;
@@ -8672,13 +9249,36 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         // 全対象のHPを同時に変動させてからダウン判定・誘発能力へ進む。
         for (const hit of hits) {
           const target = findStackById(s, hit.targetStackId);
-          if (target) target.stack.damage += hit.damage;
+          if (!target) continue;
+          // 後の対象の確認で全員防護を使った場合も、まだ未適用の同時ダメージへ反映する。
+          // 防御確認の順番で「全員」の適用範囲を変えない (5.22.4)。
+          if (isSpecialImmune(s, target, ctx.player)) hit.damage = 0;
+          target.stack.damage += hit.damage;
         }
+        // Q752: 「相手のホロメン1人に」は、同時に実ダメージが通った人数で判定する。
+        // 防護・軽減で0になった相手と、自分へのダメージは人数へ含めない。
+        const opponentTargetCount = new Set(
+          hits
+            .filter(
+              (hit) =>
+                hit.damage > 0 &&
+                findStackById(s, hit.targetStackId)?.player ===
+                  other(ctx.player),
+            )
+            .map((hit) => hit.targetStackId),
+        ).size;
         // 全対象の被ダメージ時能力を、最初のダウンで発生源が消える前に収集する。
         for (const hit of hits) {
           const target = findStackById(s, hit.targetStackId);
           if (target)
-            recordSpecialDamage(s, ctx, target, hit.damage, hit.noLife);
+            recordSpecialDamage(
+              s,
+              ctx,
+              target,
+              hit.damage,
+              hit.noLife,
+              opponentTargetCount,
+            );
         }
         break;
       }
@@ -8726,7 +9326,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
       case "recoverRevealedSupport": {
         const eligible = (ctx.revealed ?? []).filter((uid) => {
           const c = cardOf(s, uid);
-          return c.cardType === "support" && p.archive.includes(uid);
+          return c.cardType === "support" && p.deck.includes(uid);
         });
         if (eligible.length === 0) break;
         pushPrompt(s, {
@@ -8737,7 +9337,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           pickMax: 1,
           dest: "hand",
           restTo: "none",
-          from: "archive",
+          from: "deck",
           ctx,
         });
         return;
@@ -8783,6 +9383,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           const ad = resumeOp.inner.rest.find((o) => o.t === "artDamage");
           const bound = findStackById(s, boundId);
           if (ad && ad.t === "artDamage" && bound) {
+            ad.originalTargetStackId ??= ad.targetStackId;
             ad.targetStackId = boundId;
             log(
               s,
@@ -8912,7 +9513,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           type: "effectPickCard",
           player: ctx.player,
           uids: yells,
-          pickMin: n,
+          pickMin: Math.min(op.min ?? n, n),
           pickMax: n,
           dest: "cheerAssign",
           restTo: "none",
@@ -9160,7 +9761,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           ? findStackById(s, ctx.sourceStackId)
           : null;
         const uids = src ? [...src.stack.yells] : [];
-        if (uids.length === 0) {
+        if (uids.length < (op.min ?? 1)) {
           log(
             s,
             ctx.player,
@@ -9173,8 +9774,8 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           type: "effectPickCard",
           player: ctx.player,
           uids,
-          pickMin: 1,
-          pickMax: uids.length,
+          pickMin: op.min ?? 1,
+          pickMax: Math.min(op.max ?? uids.length, uids.length),
           dest: "archive",
           restTo: "none",
           from: "stageYells",
@@ -9543,15 +10144,25 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
           break;
         }
         if (p.cheerDeck.length === 0 || op.n <= 0) break;
+        const topAssign: Extract<Prompt, { type: "cheerAssign" }> = {
+          type: "cheerAssign",
+          player: ctx.player,
+          yellUid: p.cheerDeck[0],
+          reason: "effect",
+          filter: cheerAssignTargetFilter(op.target, op.filter),
+          frontOnly: op.target === "chooseOwnFront" || undefined,
+          requiredTargetStackId: op.requiredTargetStackId,
+          nextTopCheer:
+            op.sameTarget && op.n > 1 ? { ...op, n: op.n - 1 } : undefined,
+          ctx,
+        };
+        // 10.7.2.3.4: 送り先がいない送付は無視し、エールを山札から動かさない。
+        // ライフダメージによるエールの移動とは異なり、アーカイブする指示はない。
+        if (cheerAssignCandidates(s, topAssign).length === 0) {
+          log(s, ctx.player, `${ctx.label}: エールを送れるホロメンがいません`);
+          break;
+        }
         if (op.optional) {
-          if (targetCandidates(s, ctx, op.target, op.filter).length === 0) {
-            log(
-              s,
-              ctx.player,
-              `${ctx.label}: エールを送れるホロメンがいません`,
-            );
-            break;
-          }
           pushPrompt(s, {
             type: "effectConfirm",
             player: ctx.player,
@@ -9569,29 +10180,6 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         );
         if (attachCheerDirect(s, ctx, yellUid, op.target, op.filter)) {
           if (op.n > 1) ctx.rest.unshift({ ...op, n: op.n - 1 });
-          break;
-        }
-        const topAssign: Extract<Prompt, { type: "cheerAssign" }> = {
-          type: "cheerAssign",
-          player: ctx.player,
-          yellUid,
-          reason: "effect",
-          filter: cheerAssignTargetFilter(op.target, op.filter),
-          frontOnly: op.target === "chooseOwnFront" || undefined,
-          requiredTargetStackId: op.requiredTargetStackId,
-          nextTopCheer:
-            op.sameTarget && op.n > 1 ? { ...op, n: op.n - 1 } : undefined,
-          ctx,
-        };
-        // filter や frontOnly に合うホロメンが1体もいないと、送り先ゼロの
-        // プロンプトになって進行不能になる。公開済みのエールはアーカイブへ
-        // 送って不発とする (ステージが空の時のライフダメージ処理と同じ扱い)。
-        // 残り回数もここで打ち切る (繰り返しても送り先は増えない)。
-        if (cheerAssignCandidates(s, topAssign).length === 0) {
-          p.archive.push(yellUid);
-          queueYellArchivedReactive(s, ctx, [yellUid]);
-          ctx.rest.unshift(...collectYellArchivedTriggerOps(s, ctx.player));
-          log(s, ctx.player, `${ctx.label}: エールを送れるホロメンがいません`);
           break;
         }
         if (op.n > 1 && !op.sameTarget)
@@ -9836,42 +10424,7 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
       }
       case "archiveHand": {
         const eligible = archiveHandEligible(s, ctx.player, op);
-        if (!op.replacementChecked && op.n > 0) {
-          const replacement = archiveHandHoloReplacement(s, ctx, op);
-          const minHolo = replacement
-            ? archiveHandMinHoloForReplacement(
-                s,
-                ctx,
-                op,
-                eligible,
-                replacement.maxHolo,
-              )
-            : null;
-          if (replacement && minHolo !== null) {
-            pushPrompt(s, {
-              type: "effectConfirm",
-              player: ctx.player,
-              label: `推しスキル「${replacement.skillName}」で手札のかわりにホロパワーをアーカイブしますか？`,
-              thenOps: [
-                { t: "markOshiSkillUsed", name: replacement.skillName },
-                {
-                  t: "archiveHoloPowerAny",
-                  min: minHolo,
-                  max: replacement.maxHolo,
-                  forHandReplacement: true,
-                },
-                {
-                  t: "archiveRemainingHand",
-                  total: op.n,
-                  original: { ...op, replacementChecked: true },
-                },
-              ],
-              elseOps: [{ ...op, replacementChecked: true }],
-              ctx,
-            });
-            return;
-          }
-        }
+        if (offerHandArchiveReplacement(s, ctx, op)) return;
         // 任意コストを引き受けた後に肩代わりだけを辞退しても、
         // 本来の支払いを省略して後続の効果を解決してはいけない。
         if (op.requireFullPayment && eligible.length < op.n) {
@@ -10168,9 +10721,13 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         break;
       }
       case "noRestReset": {
-        for (const n of op.names)
-          if (!s.noRestResetNames[ctx.player].includes(n))
-            s.noRestResetNames[ctx.player].push(n);
+        // 10.10.2: 永続能力以外の継続効果は、使用後の登場・再登場へ適用しない。
+        for (const { stack } of allStacks(p))
+          if (
+            op.names.some((name) => stackNames(s, stack).includes(name)) &&
+            !s.noRestResetStackIds[ctx.player].includes(stack.id)
+          )
+            s.noRestResetStackIds[ctx.player].push(stack.id);
         log(
           s,
           ctx.player,
@@ -10291,7 +10848,12 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         }
         const sourceStackId = ctx.artSourceStackId ?? ctx.sourceStackId;
         const src = sourceStackId ? findStackById(s, sourceStackId) : null;
-        const noReduce = artDamageIgnoresReduction(s, ctx, target, src);
+        const noReduce = artDamageIgnoresReduction(
+          s,
+          ctx,
+          originalArtDamageTarget(s, op, target),
+          src,
+        );
         // 「相手からダメージを受けない」付与、または味方ギフトのアーツダメージ免疫オーラの対象には
         // アーツダメージを与えられない
         if (
@@ -10326,12 +10888,47 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         // ダメージを受ける側の「ダメージを受ける時」リアクティブを確認する。
         // 軽減不可の場合も、軽減以外の能力は候補に残す。
         // 特殊ダメージ側と同じ interceptIncomingDamage を通す (公式Q158)
-        if (!op.interruptChecked && !op.negate) {
+        // 1.3.2.2 / 5.22.2 / Q227: アーツ値の修正後から0以下なら、
+        // 「ダメージを受ける時」自体が発生しない。受けるダメージの加算は含める。
+        // ただし軽減・無効化による0を先に確定すると、Q681の防御順を失うため、
+        // この有無の判定では軽減を適用しない。実際のダメージ計算は後で行う。
+        if (
+          !op.interruptChecked &&
+          !op.negate &&
+          // 適用済みの置換による0は、まだ選んでいない防御の順序とは区別する。
+          calculateArtDamage(s, ctx, op, target, src, true).damage >
+            (noReduce ? 0 : (op.extraReduce ?? 0)) &&
+          (!op.thresholdOrderResolved ||
+            calculateArtDamage(s, ctx, op, target, src, noReduce).damage > 0)
+        ) {
           op.interruptChecked = true;
+          let artOrder:
+            | { raw: number; reduced: number; firstReduction: number }
+            | undefined;
+          if (
+            !noReduce &&
+            !op.thresholdOrderResolved &&
+            giftOf(topCard(s, target.stack)).noArtDamageAtLeast
+          ) {
+            const current = calculateArtDamage(s, ctx, op, target, src, false);
+            artOrder = {
+              raw: Math.max(
+                0,
+                calculateArtDamage(s, ctx, op, target, src, true).damage -
+                  (op.extraReduce ?? 0),
+              ),
+              reduced: current.damage,
+              firstReduction: current.firstMods.reduce(
+                (sum, mod) => sum + mod.firstArtDamageReduce!,
+                0,
+              ),
+            };
+          }
           if (
             interceptIncomingDamage(s, ctx, target, {
               art: true,
               noReduce,
+              artOrder,
               attacker: ctx.player,
               defer: () => ctx.rest.unshift(op),
               diceDone: op.diceReduceDone ?? [],
@@ -10359,11 +10956,14 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             (sum, mod) => sum + mod.firstArtDamageReduce!,
             0,
           );
-          damage = Math.max(0, damage - reduce);
+          // 軽減不可でも、実際に受けたダメージが「最初」であることは変わらない。
+          // 軽減の適用と初回の消費を分け、後続のアーツへ持ち越さない。
+          if (!noReduce) damage = Math.max(0, damage - reduce);
           s.turnModifiers = s.turnModifiers.filter(
             (tm) => !firstMods.includes(tm),
           );
-          log(s, ctx.player, `効果により受けるアーツダメージ-${reduce}`);
+          if (!noReduce)
+            log(s, ctx.player, `効果により受けるアーツダメージ-${reduce}`);
         }
         damage = applyArtDamageImmunity(s, target, damage, noReduce);
         const remainingBefore = Math.max(
@@ -10395,15 +10995,36 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
             targetPlayer: target.player,
             targetPos: target.pos,
             damage,
+            dealtOps: op.dealtOps,
           },
           { t: "continueRuleProcessing" },
         );
-        beginRuleProcessing(s, ctx, {
-          player: ctx.player,
-          artDamage: damage > 0,
-          sourceStackId: src?.stack.id,
-          targetStackId: op.targetStackId,
-        });
+        const artDownAbility = op.downedOps?.length
+          ? {
+              ops: op.downedOps,
+              artName: op.artName,
+              damage,
+              overkill: ctx.lastOverkill,
+            }
+          : undefined;
+        // 本文の特殊ダメージで既に致死でも、0アーツダメージで発生源やライフ免除を上書きしない。
+        const pendingCause = ctx.pendingRuleCauses?.[op.targetStackId];
+        if (
+          damage === 0 &&
+          artDownAbility &&
+          pendingCause?.player === ctx.player &&
+          pendingCause.sourceStackId === sourceStackId
+        )
+          pendingCause.artDownAbility = artDownAbility;
+        // 1.3.2.2 / 5.22.4: 0ダメージは与えた事象にならない。
+        if (damage > 0)
+          deferRuleDown(ctx, {
+            player: ctx.player,
+            artDamage: true,
+            sourceStackId,
+            targetStackId: op.targetStackId,
+            artDownAbility,
+          });
         break;
       }
       case "afterArtDamage": {
@@ -10421,6 +11042,27 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         // (「相手のセンターホロメンをダウンさせた時」の判定に使う)
         ctx.lastArtDownedPos = ctx.lastArtDowned ? op.targetPos : undefined;
         const attackerAbilities: TriggerAbility[] = [];
+        if (
+          op.damage > 0 &&
+          op.dealtOps?.length &&
+          sourceStackId !== undefined
+        ) {
+          // 10.1.1.2.1・10.8：回復を先に確定せず、使用時の自傷等と
+          // 同じ待機列へ置く。別の能力が先に解決しても与ダメージ値は保持する。
+          attackerAbilities.push(
+            ...captureTriggerContexts({ ...ctx, lastArtDealt: op.damage }, [
+              {
+                id: `artDealt:${sourceStackId}:${s.log.at(-1)?.id ?? 0}`,
+                label: `アーツ「${ctx.artName ?? ""}」の能力`,
+                sourceStackId,
+                ops: [
+                  { t: "setSource", stackId: sourceStackId },
+                  ...structuredClone(op.dealtOps),
+                ],
+              },
+            ]),
+          );
+        }
         const firstArtUse =
           !!src && src.player === ctx.player && !ctx.artUsedEmitted;
         if (firstArtUse) {
@@ -10586,15 +11228,20 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         ctx.rest.unshift(...emits);
         if (op.targetPlayer !== ctx.player && op.damage > 0) {
           const isBack = typeof op.targetPos !== "string";
+          const specialReactive = usableOshiReactive(
+            s,
+            ctx.player,
+            "dealtSpecial",
+            null,
+            undefined,
+            true,
+          );
           const ur =
-            usableOshiReactive(
-              s,
-              ctx.player,
-              "dealtSpecial",
-              null,
-              undefined,
-              true,
-            ) ??
+            (specialReactive?.reactive.when === "dealtSpecial" &&
+            (specialReactive.reactive.targetCount ?? 1) ===
+              (op.opponentTargetCount ?? 1)
+              ? specialReactive
+              : null) ??
             (subject || fromOshi
               ? usableOshiReactive(
                   s,
@@ -10633,6 +11280,10 @@ export function runOps(s: GameState, ctx: EffectContextData): void {
         const pending = ctx.pendingAttach;
         if (!pending) break;
         ctx.pendingAttach = undefined;
+        // 付与/アーカイブへ移す前に解決中領域から外し、同じ実体を二重配置しない。
+        p.resolvingSupports = (p.resolvingSupports ?? []).filter(
+          (uid) => uid !== pending.uid,
+        );
         const st = getStack(s.players[ctx.player], pending.pos);
         const c = cardOf(s, pending.uid);
         // コストの支払いで付け先が消えた/付けられなくなった場合はアーカイブへ送る
@@ -11034,36 +11685,41 @@ function allyDownedRuleAbilities(
   return abilities;
 }
 
-function downRewardRuleAbility(
+function downRewardRuleAbilities(
   s: GameState,
   cause: RuleDownCause | undefined,
   downed: { player: PlayerId; pos: StagePosition; stack: HolomenStack },
-): RuleDownAbility | null {
-  if (!cause || cause.player === downed.player) return null;
-  const src = cause.sourceStackId
-    ? findStackById(s, cause.sourceStackId)
-    : null;
-  const ops: Op[] = [];
-  for (const reward of s.downRewards ?? []) {
+): RuleDownAbility[] {
+  if (!cause || cause.player === downed.player) return [];
+  // 待機能力の発生源は先に離脱していても、最終情報で対象の個体・所属を判定する。
+  const source =
+    cause.sourceStackId !== undefined
+      ? sourceHolomen(s, cause.sourceStackId)
+      : null;
+  const abilities: RuleDownAbility[] = [];
+  for (const [index, reward] of (s.downRewards ?? []).entries()) {
     if (reward.player !== cause.player || reward.expiresTurn < s.turn) continue;
     if (reward.artDamageOnly && !cause.artDamage) continue;
     if (!reward.anyHolomen && downed.pos !== "center") continue;
-    if (reward.tag && !(src && topCard(s, src.stack).tags.includes(reward.tag)))
+    if (reward.tag && !(source && topCard(s, source).tags.includes(reward.tag)))
       continue;
-    if (reward.stackId !== undefined && src?.stack.id !== reward.stackId)
-      continue;
+    if (reward.stackId !== undefined && source?.id !== reward.stackId) continue;
+    const ops: Op[] = [];
     if (reward.oppLifeMinus)
       ops.push({ t: "oppLifeMinus", n: reward.oppLifeMinus });
     if (reward.draw) ops.push({ t: "draw", n: reward.draw });
+    if (ops.length === 0) continue;
+    abilities.push({
+      id: `downReward:${downed.stack.id}:${index}`,
+      player: cause.player,
+      label: reward.sourceLabel
+        ? `${reward.sourceLabel}のダウン時効果`
+        : `相手ホロメンのダウン時に発揮する効果（${index + 1}）`,
+      sourceStackId: source?.id,
+      ops,
+    });
   }
-  if (ops.length === 0) return null;
-  return {
-    id: `downReward:${downed.stack.id}`,
-    player: cause.player,
-    label: "相手ホロメンのダウン時に発揮する効果",
-    sourceStackId: src?.stack.id,
-    ops,
-  };
+  return abilities;
 }
 
 function downRuleAbilities(
@@ -11148,6 +11804,22 @@ function downRuleAbilities(
 
   if (cause && cause.player !== downed.player) {
     const attacker = cause.player;
+    const artDown = cause.artDownAbility;
+    const artOps = artDown?.ops.filter(
+      (op) =>
+        op.t === "if" &&
+        op.cond.c === "artDowned" &&
+        (!op.cond.pos || op.cond.pos === downed.pos),
+    );
+    if (artDown && artOps?.length)
+      abilities.push({
+        id: `artDowned:${downed.stack.id}:${cause.sourceStackId}`,
+        player: attacker,
+        label: `アーツ「${artDown.artName}」のダウン時能力`,
+        sourceStackId: cause.sourceStackId,
+        ops: artOps,
+        artDownAbility: artDown,
+      });
     const src = cause.sourceStackId
       ? findStackById(s, cause.sourceStackId)
       : null;
@@ -11166,17 +11838,14 @@ function downRuleAbilities(
       cause.sourceStackId !== undefined
         ? sourceHolomen(s, cause.sourceStackId)
         : null;
-    if (subject) {
-      const allyOps = emitAllyDownedOpponentOps(s, attacker, subject);
-      if (allyOps.length > 0)
-        abilities.push({
-          id: `allyDownedOpponent:${downed.stack.id}`,
-          player: attacker,
-          label: "味方が相手をダウンさせた時の能力",
-          sourceStackId: subject.id,
-          ops: allyOps,
-        });
-    }
+    abilities.push(
+      ...collectAllyDownedOpponentAbilities(
+        s,
+        attacker,
+        subject,
+        downed.stack.id,
+      ),
+    );
     const oppOshi =
       cause.sourceStackId !== undefined
         ? usableOshiReactive(
@@ -11203,8 +11872,7 @@ function downRuleAbilities(
         },
       });
     }
-    const reward = downRewardRuleAbility(s, cause, downed);
-    if (reward) abilities.push(reward);
+    abilities.push(...downRewardRuleAbilities(s, cause, downed));
   }
   return abilities;
 }
@@ -11214,6 +11882,7 @@ function startRuleDown(
   entry: { player: PlayerId; pos: StagePosition; stack: HolomenStack },
 ): void {
   const state = s.ruleResolution!;
+  state.downBeforeLife = undefined;
   entry.stack.downResolving = true;
   const top = topCard(s, entry.stack);
   const cause = state.causes[entry.stack.id];
@@ -11267,6 +11936,15 @@ function executeRuleAbility(s: GameState, ability: RuleDownAbility): void {
     rest,
     label: ability.label,
   };
+  if (ability.artDownAbility) {
+    ctx.artSourceStackId = ability.sourceStackId;
+    ctx.artTargetStackId = current.stackId;
+    ctx.artName = ability.artDownAbility.artName;
+    ctx.lastArtDowned = true;
+    ctx.lastArtDownedPos = current.pos;
+    ctx.lastArtDealt = ability.artDownAbility.damage;
+    ctx.lastOverkill = ability.artDownAbility.overkill;
+  }
   if (ability.reactive) {
     ctx.rest.unshift({
       t: "offerReactiveSkill",
@@ -11471,12 +12149,16 @@ function continueRuleProcessing(s: GameState): void {
       continue;
     }
 
+    const candidates = ruleDownCandidates(s);
+    if (candidates.length === 0) state.downBeforeLife = undefined;
     const lifePlayer = (
-      state.lifeDamage[s.turnPlayer] > 0
-        ? s.turnPlayer
-        : state.lifeDamage[other(s.turnPlayer)] > 0
-          ? other(s.turnPlayer)
-          : null
+      state.downBeforeLife
+        ? null
+        : state.lifeDamage[s.turnPlayer] > 0
+          ? s.turnPlayer
+          : state.lifeDamage[other(s.turnPlayer)] > 0
+            ? other(s.turnPlayer)
+            : null
     ) as PlayerId | null;
     if (lifePlayer !== null) {
       applyOneLifeDamage(s, lifePlayer);
@@ -11484,7 +12166,6 @@ function continueRuleProcessing(s: GameState): void {
       continue;
     }
 
-    const candidates = ruleDownCandidates(s);
     if (candidates.length > 0) {
       const controller = (
         candidates.some((e) => e.player === s.turnPlayer)
@@ -11550,20 +12231,28 @@ function beginRuleProcessing(
     return;
   }
   const pendingCauses = resume.pendingRuleCauses ?? {};
+  const pendingLife = resume.pendingLifeDamage ?? [0, 0];
   resume.pendingRuleCauses = undefined;
+  resume.pendingLifeDamage = undefined;
   if (s.ruleResolution) {
+    s.ruleResolution.lifeDamage[0] += pendingLife[0];
+    s.ruleResolution.lifeDamage[1] += pendingLife[1];
     Object.assign(s.ruleResolution.causes, pendingCauses);
     if (cause?.targetStackId !== undefined)
       s.ruleResolution.causes[cause.targetStackId] = cause;
     return;
   }
-  if (ruleDownCandidates(s).length === 0) return;
+  if (ruleDownCandidates(s).length === 0 && pendingLife.every((n) => n === 0))
+    return;
   const causes: Record<number, RuleDownCause> = { ...pendingCauses };
   if (cause?.targetStackId !== undefined) causes[cause.targetStackId] = cause;
   s.ruleResolution = {
     resume,
     causes,
-    lifeDamage: [0, 0],
+    lifeDamage: [pendingLife[0], pendingLife[1]],
+    // 保留中のアーツ能力より先に致死対象を処理し、その後はQ160の1人ずつの順序を守る。
+    downBeforeLife:
+      pendingLife.some((n) => n > 0) && ruleDownCandidates(s).length > 0,
     lifeDepleted: [false, false],
   };
 }
@@ -11615,37 +12304,28 @@ export function resolveRuleDownChoice(
   advance(s);
 }
 
-// ライフをn枚減らす。11.5のルール処理中は実処理せず保留する。
-function loseLife(s: GameState, pid: PlayerId, n: number) {
+// 11.1.2 / 11.5: 能力ではライフダメージを増やし、カードの送付はチェック時に行う。
+function loseLife(
+  s: GameState,
+  pid: PlayerId,
+  n: number,
+  ctx: EffectContextData,
+) {
   if (n <= 0) return;
-  if (s.ruleResolution) {
-    s.ruleResolution.lifeDamage[pid] += n;
-    return;
-  }
-  const p = s.players[pid];
-  for (let i = 0; i < n; i++) {
-    if (p.life.length === 0) break;
-    const yellUid = p.life.shift()!;
-    if (allStacks(p).length > 0) {
-      pushPrompt(s, {
-        type: "cheerAssign",
-        player: pid,
-        yellUid,
-        reason: "life",
-      });
-    } else {
-      p.archive.push(yellUid);
-    }
-  }
-  if (p.life.length === 0)
-    setWinner(s, other(pid), `${p.name}のライフが0になりました`);
+  if (s.ruleResolution) s.ruleResolution.lifeDamage[pid] += n;
+  else (ctx.pendingLifeDamage ??= [0, 0])[pid] += n;
 }
 
 // 相手の能力によるライフ減少。対象がこのターン「ライフは相手の能力で減らない」なら無効化する
-function loseLifeByOppAbility(s: GameState, targetPid: PlayerId, n: number) {
+function loseLifeByOppAbility(
+  s: GameState,
+  targetPid: PlayerId,
+  n: number,
+  ctx: EffectContextData,
+) {
   if (s.lifeImmuneFromOppTurn?.[targetPid] === s.turn) {
     log(s, targetPid, `相手の能力によるライフ減少 (-${n}) を無効にしました`);
     return;
   }
-  loseLife(s, targetPid, n);
+  loseLife(s, targetPid, n, ctx);
 }

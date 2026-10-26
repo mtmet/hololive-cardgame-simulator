@@ -1545,7 +1545,7 @@ dialog.db-artwork-preview:not([open]) {
 
 .pick-modal-visibility-button {
   position: absolute;
-  top: 50%;
+  top: calc(50% - 20px);
   right: calc(100% + 60px);
   z-index: 1;
   width: 40px;
@@ -1553,13 +1553,15 @@ dialog.db-artwork-preview:not([open]) {
   height: 40px;
   min-height: 40px;
   padding: 0;
-  transform: translateY(-50%);
+  transform: none;
   border-radius: 11px;
   pointer-events: auto;
 }
 
-.pick-modal-visibility-button:hover:not(:disabled) {
-  transform: translateY(-50%);
+:root .pick-modal-visibility-button:hover:not(:disabled),
+:root .pick-modal-visibility-button:active,
+:root .pick-modal-visibility-button:focus-visible {
+  transform: none;
 }
 
 .pick-modal-visibility-button svg {
@@ -2808,24 +2810,53 @@ dialog.db-artwork-preview:not([open]) {
   .game-compact .hand-area:has(> .mobile-card-panel) {
     border-top: 0;
   }
+  /* 手札上の案内は操作の種類で伸ばさず、長い操作列は横にスクロールする。 */
   .game-compact .prompt-bar {
-    flex-wrap: wrap;
+    flex: 0 0 42px;
+    flex-wrap: nowrap;
+    height: 42px;
     min-height: 42px;
-    max-height: 28svh;
-    overflow: auto;
+    max-height: 42px;
+    overflow: auto hidden;
+    scrollbar-width: none;
     white-space: normal;
     gap: 6px;
-    padding: 5px 8px;
+    padding: 2px 8px;
     font-size: 12px;
-    align-content: center;
+    align-items: center;
   }
   .game-compact .prompt-bar > span {
-    flex: 1 1 160px;
+    flex: 1 1 0;
     min-width: 0;
+    max-height: 100%;
+    padding-block: 1px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
     overflow-wrap: anywhere;
+    line-height: 16px;
   }
-  .game-compact .prompt-bar:has(> .incoming-damage-notice) {
-    align-content: flex-start;
+  .game-compact .prompt-bar > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .game-compact .prompt-bar > .cheer-chip {
+    width: 24px;
+    height: 34px;
+  }
+  .game-compact .prompt-bar > .incoming-damage-notice,
+  .game-compact .prompt-bar:has(> .effect-choice-list) > span {
+    flex: 0 0 auto;
+    max-width: 45vw;
+  }
+  .game-compact .prompt-bar > .effect-choice-list {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+  }
+  .game-compact .prompt-bar .effect-choice-action {
+    white-space: nowrap;
   }
   .game-compact .mobile-card-panel + .prompt-bar {
     border-top: 1px solid var(--border);
@@ -3043,8 +3074,6 @@ dialog.db-artwork-preview:not([open]) {
     border-radius: 0;
   }
   .game-compact .prompt-bar {
-    flex: 0 0 auto;
-    max-height: 40svh;
     margin-top: auto;
   }
   .game-compact .hand-row {
@@ -3349,4 +3378,124 @@ dialog.db-artwork-preview:not([open]) {
   padding: 10px;
   line-height: 1.7;
   overflow-wrap: anywhere;
+}
+
+/* 使用中カードは既存の案内行へ収め、盤面・手札の高さを変えない。 */
+.prompt-bar.resolving-status {
+  --resolving-support-height: 36px;
+  --resolving-support-image-height: 32px;
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.resolving-supports {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--resolving-support-height);
+}
+.resolving-status-passive .resolving-supports {
+  flex: 1;
+}
+.resolving-supports-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.resolving-supports-list {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--resolving-support-height);
+  overflow: auto hidden;
+  scrollbar-width: none;
+}
+.prompt-bar button.resolving-support-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-width: min(300px, calc(100vw - 76px));
+  min-height: 0;
+  height: var(--resolving-support-height);
+  padding: 1px 5px;
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+}
+.resolving-support-card .card {
+  flex: 0 0 auto;
+  width: auto;
+  height: var(--resolving-support-image-height);
+  aspect-ratio: 5 / 7;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.resolving-support-card .card img {
+  filter: none;
+  box-shadow: none;
+}
+.resolving-support-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.resolving-support-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resolving-support-name > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.resolving-support-card > svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 操作のある行では画像を入口にして、説明・ボタンの横幅を確保する。 */
+.resolving-status:not(.resolving-status-passive) .resolving-support-name,
+.resolving-status:not(.resolving-status-passive) .resolving-support-card > svg {
+  display: none;
+}
+.resolving-status:not(.resolving-status-passive) > span {
+  flex: 1 1 0;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.25;
+}
+:root .resolving-support-card:hover:not(:disabled),
+:root .resolving-support-card:active,
+:root .resolving-support-card:focus-visible {
+  transform: none;
+  box-shadow: none;
+  outline-offset: -2px;
+}
+.game-compact .prompt-bar.resolving-status {
+  --resolving-support-height: 34px;
+  --resolving-support-image-height: 30px;
+  padding-block: 2px;
+  overflow: auto hidden;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
 }

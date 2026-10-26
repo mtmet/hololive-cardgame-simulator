@@ -42,7 +42,7 @@ export function CardView({
   className?: string;
   dataHandUid?: string;
   animationUid?: string;
-  animationZone?: "hand" | "stage" | "archive";
+  animationZone?: "hand" | "stage" | "archive" | "resolving";
   /**
    * 一覧のように大量に並べる場合だけ遅延読み込みする。対戦画面は表示直前に
    * 取得が始まると空欄が見えるため、既定では即座に読み込む。

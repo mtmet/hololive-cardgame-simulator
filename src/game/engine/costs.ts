@@ -29,7 +29,14 @@ import {
   cardMatchesFilter,
   targetCandidates,
 } from "./conditions";
-import { allStacks, cardOf, findStackById, other, topCard } from "./state";
+import {
+  allStacks,
+  cardOf,
+  findStackById,
+  other,
+  topCard,
+  isSupportAbilitySource,
+} from "./state";
 
 /** 選択前はステージから、取り外した後はプロンプトの記録から保持者を参照する。 */
 export function cheerOriginStackId(
@@ -181,12 +188,7 @@ function archiveSelfYellPayable(
   return matching.length + subs >= op.n;
 }
 
-/**
- * 起動型能力のコストを支払えるか。
- * コストは ops の先頭に並ぶので、先頭から続くコストopだけを見る。
- * 支払えない能力を「使用可能」として出すと、起動→コスト不足で不発→また
- * 使用可能、の無限ループになる (CPUが延々と選び続けて終局しない)。
- */
+/** 起動能力の明示的なコストだけを判定する。効果の対象不在はコスト不足ではない。 */
 export function activatedCostPayable(
   s: GameState,
   pid: PlayerId,
@@ -194,22 +196,19 @@ export function activatedCostPayable(
   ops: readonly Op[],
   sourceSupportUid?: string,
 ): boolean {
-  const ctx: EffectContextData = {
-    player: pid,
-    sourceStackId: stack.id,
-    sourceSupportUid,
-    rest: [],
-    label: "",
-  };
-  for (const op of ops) {
-    // 「〜をアーカイブして効果を使いますか？」型。コストを払えなければ
-    // then は絶対に実行されないので、能力自体を出さない。
-    if (op.t === "optionalCost") return canPayOptionalCost(s, ctx, op.cost);
-    const payable = costOpPayable(s, ctx, op);
-    if (payable === undefined) break;
-    if (!payable) return false;
-  }
-  return true;
+  const first = ops[0];
+  if (first?.t !== "optionalCost") return true;
+  return canPayOptionalCost(
+    s,
+    {
+      player: pid,
+      sourceStackId: stack.id,
+      sourceSupportUid,
+      rest: [],
+      label: "",
+    },
+    first.cost,
+  );
 }
 
 // ------------------------------------------------------------
@@ -611,7 +610,13 @@ export function archiveHandHoloReplacement(
   ctx: EffectContextData,
   op: Extract<Op, { t: "archiveHand" }>,
 ): { skillName: string; maxHolo: number } | null {
-  if (op.replacementChecked) return null;
+  // 10.13.2・5.19.1: 付属サポート自身の能力を、付け先ホロメンの能力と混同しない。
+  if (
+    op.replacementChecked ||
+    ctx.originOshiSkill ||
+    isSupportAbilitySource(s, ctx)
+  )
+    return null;
   const p = s.players[ctx.player];
   if (p.holoPower.length === 0) return null;
   const source = ctx.sourceStackId ? findStackById(s, ctx.sourceStackId) : null;
@@ -746,7 +751,7 @@ function costOpPayable(
     case "archiveSelfYell":
       return !!source && archiveSelfYellPayable(s, source.stack, op);
     case "archiveSelfYellAny":
-      return !!source && source.stack.yells.length > 0;
+      return !!source && source.stack.yells.length >= (op.min ?? 1);
     case "archiveStacked":
       return stackedCostCandidates(s, ctx, op).length >= (op.all ? 1 : op.n);
     case "archiveAttached":

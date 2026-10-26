@@ -140,7 +140,7 @@ function validateSave(value: unknown): asserts value is SavedCpuMatch {
     "stageYellArchivedThisTurn",
     "downedUidsThisTurn",
     "downedUidsPrevTurn",
-    "noRestResetNames",
+    "noRestResetStackIds",
     "artUsesThisTurn",
     "bloomedCardUidsThisTurn",
   ])

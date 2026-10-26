@@ -25,6 +25,7 @@ type ActionKind =
 
 type ActionZone =
   | "hand"
+  | "resolving"
   | "stage"
   | "attached"
   | "archive"
@@ -51,6 +52,7 @@ type ActionCardLocation = {
 
 type ActionZoneState = {
   hand: string[];
+  resolving: string[];
   stage: string[];
   attached: string[];
   archive: string[];
@@ -181,6 +183,7 @@ function playerZones(player: PlayerState): ActionZoneState {
     for (const uid of uids) locations[uid] = { zone, key, stackId };
   };
   addLocations(player.hand, "hand", "hand");
+  addLocations(player.resolvingSupports ?? [], "resolving", "resolving");
   addLocations(player.archive, "archive", "archive");
   addLocations(player.deck, "deck", "deck");
   addLocations(player.holoPower, "holoPower", "holoPower");
@@ -193,6 +196,7 @@ function playerZones(player: PlayerState): ActionZoneState {
   }
   return {
     hand: [...player.hand],
+    resolving: [...(player.resolvingSupports ?? [])],
     stage: stacks.flatMap((stack) => stack.cards),
     attached: stacks.flatMap((stack) => stack.supports),
     archive: [...player.archive],
@@ -264,6 +268,7 @@ type HiddenZone = (typeof HIDDEN_ZONES)[number];
 /** 公開領域へ現れたカードの出所として、行き先ごとに認める非公開領域。 */
 const REVEAL_SOURCES: Partial<Record<ActionZone, readonly HiddenZone[]>> = {
   stage: ["hand"],
+  resolving: ["hand"],
   attached: ["hand"],
   yell: ["cheerDeck", "life"],
   archive: ["hand", "holoPower", "deck"],
@@ -357,7 +362,11 @@ export function hiddenBoundaryTransitions(
       player,
       claimed,
     );
-    if (budget.size === 0 && departures.length === 0) continue;
+    const hasNewResolving = current[player].resolving.some(
+      (uid) => !previousTracked.has(uid) && !claimed.has(uid),
+    );
+    if (budget.size === 0 && departures.length === 0 && !hasNewResolving)
+      continue;
     for (const [uid, location] of Object.entries(current[player].locations)) {
       if (claimed.has(uid) || previousTracked.has(uid)) continue;
       // ゲーム準備の裏向き配置は、手札もスタックの中身も位置IDになりうる。
@@ -382,6 +391,20 @@ export function hiddenBoundaryTransitions(
       }
       const candidates = REVEAL_SOURCES[location.zone];
       if (!candidates) continue;
+      // 使用中の公開カードは手札からプレイされたもの。途中のドローで
+      // 手札枚数の増減が相殺されても、デッキから来た札にはしない。
+      if (location.zone === "resolving") {
+        takeFromBudget(budget, ["hand"]);
+        claimed.add(uid);
+        transitions.push({
+          player,
+          uid,
+          sourcePlayer: player,
+          sourceZone: "hand",
+          zone: "resolving",
+        });
+        continue;
+      }
       const sourceZone = takeFromBudget(budget, candidates);
       if (!sourceZone) continue;
       claimed.add(uid);
@@ -438,6 +461,7 @@ function actionKind(
   zone: ActionZone,
   sourceZone?: ActionZone,
 ): ActionKind {
+  if (zone === "resolving") return "use";
   if (zone === "yell") return "cheer";
   if (zone === "attached") return "attach";
   if (zone === "hand") return "return";
@@ -490,6 +514,12 @@ function zoneTargetRect(
   seat: PlayerId,
   stackId?: number,
 ): StoredRect | null {
+  if (zone === "resolving") {
+    const element = document.querySelector<HTMLElement>(
+      `[data-resolving-player="${player}"] [data-animation-zone="resolving"]`,
+    );
+    return element ? element.getBoundingClientRect() : null;
+  }
   if (zone === "hand") {
     const element =
       player === seat

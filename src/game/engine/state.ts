@@ -3,6 +3,7 @@ import { getCard } from "../../data/loader";
 import type { Card, HolomenCard } from "../../data/types";
 import type {
   GameState,
+  EffectContextData,
   HolomenStack,
   PlayerId,
   PlayerState,
@@ -81,6 +82,17 @@ export function sourceHolomen(
     findStackById(s, stackId)?.stack ??
     s.lastKnownHolomen?.[stackId]?.stack ??
     null
+  );
+}
+
+/** 「能力追加」で得た能力の発生源は付与先ホロメン (5.19.1)。 */
+export function isSupportAbilitySource(
+  s: GameState,
+  ctx: EffectContextData,
+): boolean {
+  if (ctx.sourceSupportUid) return !ctx.grantedSupportAbility;
+  return (
+    !!ctx.sourceCardUid && cardOf(s, ctx.sourceCardUid).cardType === "support"
   );
 }
 

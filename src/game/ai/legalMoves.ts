@@ -27,7 +27,7 @@ import {
   findStackById,
   stackColors,
   stageCount,
-  targetCandidates,
+  effectTargetEntries,
   usableArts,
   usableGiftAbilities,
 } from "../engine";
@@ -302,10 +302,6 @@ function effectTargetCandidates(
   s: GameState,
   prompt: Extract<Prompt, { type: "effectTarget" }>,
 ): CandidateMove[] {
-  const perspectiveCtx =
-    prompt.perspective !== undefined
-      ? { ...prompt.ctx, player: prompt.perspective }
-      : prompt.ctx;
   const chosenIds = new Set(prompt.chosen.map((c) => c.stackId));
   const chosenColors = prompt.distinctColors
     ? prompt.chosen.flatMap((c) => {
@@ -313,14 +309,9 @@ function effectTargetCandidates(
         return entry ? stackColors(s, entry.stack) : [];
       })
     : [];
-  return targetCandidates(s, perspectiveCtx, prompt.target, prompt.filter)
+  return effectTargetEntries(s, prompt)
     .filter(
       (entry) => prompt.damageAllocation || !chosenIds.has(entry.stack.id),
-    )
-    .filter(
-      (entry) =>
-        !prompt.eligibleStackIds ||
-        prompt.eligibleStackIds.includes(entry.stack.id),
     )
     .filter(
       (entry) =>

@@ -43,6 +43,8 @@ export interface CardFilter {
   hasCollabEffect?: boolean;
   /** ブルームエフェクトを持つホロメン */
   hasBloomEffect?: boolean;
+  /** ギフトを持つホロメン */
+  hasGift?: boolean;
   batonCost?: number;
   /** 推しホロメン/コラボホロメンと同じカード名 (実行時に解決) */
   sameNameAs?: "oshi" | "collab";
@@ -218,6 +220,7 @@ export type Cond =
   | { c: "usedSpSkill"; name?: string; oshiNames?: string[] }
   | { c: "usedSpSkillThisTurn"; name?: string; ownMainStep?: boolean }
   | { c: "selfDamaged" }
+  | { c: "lifeReducedThisPerformance" }
   | { c: "oshiColorIs"; color: Color }
   | {
       c: "usedSupportTypeThisTurn";
@@ -243,7 +246,7 @@ export type Cond =
   | { c: "stackedEq"; n: number; atLeast?: boolean }
   | { c: "centerStackedAtLeast"; n: number }
   | { c: "stageCountAtMost"; n: number }
-  | { c: "artDowned"; pos?: "center" | "collab" } // このアーツで相手の(指定ポジションの)ホロメンをダウンさせた (アーツ解決後のみ)
+  | { c: "artDowned"; pos?: "center" | "collab" } // このアーツで相手の(指定ポジションの)ホロメンをダウンさせた (ダウン時能力の解決中)
   | { c: "artOverkillAtLeast"; n: number } // このアーツの与ダメが残りHPをn以上オーバー
   | { c: "secondPlayerFirstTurn" }
   | { c: "revealedMatches"; filter: CardFilter } // 公開したカードがすべて条件を満たす
@@ -364,6 +367,7 @@ export type Op =
           }
         | { kind: "backTag"; tag: string }
         | { kind: "backTagDistinct"; tag: string }
+        | { kind: "stageYell" }
         | { kind: "milled" }
         | { kind: "diceRolls" }
         | { kind: "archiveFilter"; filters: CardFilter[] } // 自分のアーカイブの(F)枚数 (いずれかに一致)
@@ -502,6 +506,8 @@ export type Op =
       /** groups内で同じカード名でなければならないグループのindex */
       sameNameGroups?: number[];
       dest: "hand" | "stage" | "attach" | "archive";
+      /** 検索札を公開してから、この枚数を手札へ、残りを指定領域へ移す。 */
+      revealThenPick?: { n: number; restTo: "archive" };
       /**
        * テキストに「公開し」が無い検索。デッキは非公開領域なので、
        * 手札に加えたカードの名称を相手のログに出してはいけない。
@@ -546,7 +552,13 @@ export type Op =
   // このホロメンに付いている〈N〉per枚につきdraw枚引く (公式Q598)
   | { t: "drawPerAttachedName"; names: string[]; per: number; draw: number }
   | { t: "handToDeckBottomNamed"; n: number; names: string[] } // 手札の指定名カードを公開しデッキの下に戻す (コスト)
-  | { t: "backToDeckBottom"; n: number; filter?: TargetFilter } // 自分のバックホロメンをデッキの下に戻す (エール/サポートはアーカイブ)
+  | {
+      t: "backToDeckBottom";
+      n: number;
+      filter?: TargetFilter;
+      /** 支払いコストなら全人数を要求する。必須効果の対象不足では後続を止めない。 */
+      cost?: boolean;
+    } // 自分のバックホロメンをデッキの下に戻す (エール/サポートはアーカイブ)
   | { t: "millCheer"; n: number; max?: number } // max指定で「n〜max枚」。アーカイブ前に枚数を決める
   | {
       t: "revealTop";
@@ -559,6 +571,8 @@ export type Op =
   | { t: "revealHoloTop"; n: number } // ホロパワーの上からn枚を公開 (ctx.revealedに記録)
   | {
       t: "revealedTo";
+      /** 公開札のアーカイブ置換を確認済み。選択後の再開で二重に適用しない */
+      replacementChecked?: boolean;
       dest: "archive" | "hand" | "deckTop" | "deckBottom" | "holoBottom";
       /** デッキへ戻す順番をプレイヤーが指定する */
       orderMatters?: boolean;
@@ -665,7 +679,7 @@ export type Op =
       t: "archiveHoloPowerAny";
       min: number;
       max?: number;
-      /** 追加枚数の確認を再帰するとき、先に支払った枚数を保持する */
+      /** 旧保存の逐次支払いから再開する場合、既に支払った枚数を保持する */
       accumulate?: boolean;
       /** 手札アーカイブの置換として支払い、元能力のアーカイブ枚数へ合算する */
       forHandReplacement?: boolean;
@@ -676,6 +690,8 @@ export type Op =
       original: Extract<Op, { t: "archiveHand" }>;
     }
   | { t: "markOshiSkillUsed"; name: string }
+  /** 10.7.2.5.4: 本文解決後の盤面で推しスキル使用時の能力を待機させる。 */
+  | { t: "emitOshiSkillUsed"; player: 0 | 1; sp: boolean; name: string }
   | { t: "markOncePerGameUsed"; key: string }
   | { t: "archiveHoloPower"; n: number }
   | { t: "handToHoloPower"; n: number }
@@ -688,7 +704,7 @@ export type Op =
       all?: boolean;
       subSkipUids?: string[];
     }
-  | { t: "archiveSelfYellAny" } // このホロメンのエールを好きな枚数アーカイブ (選択プロンプト、ctx.milledに記録)
+  | { t: "archiveSelfYellAny"; min?: number; max?: number } // このホロメンのエールを好きな枚数アーカイブ (選択プロンプト、ctx.milledに記録)
   | {
       t: "archiveStacked";
       n: number;
@@ -810,7 +826,7 @@ export type Op =
     } // 相手のステージのエールをエールデッキの下に戻す (scope未指定=ステージ全体)
   | { t: "oppFrontYellsToCheerBottom"; nEach: number } // 相手センター/コラボから各n枚を選び、全体を好きな順で相手エールデッキ下へ
   | { t: "oppArchiveYellToOppCenter"; n: number } // 相手のアーカイブのエールを相手のセンターホロメンに送る
-  | { t: "archiveHandAll" } // 手札すべてをアーカイブ (ctx.milledに記録)
+  | { t: "archiveHandAll"; replacementChecked?: boolean } // 手札すべてをアーカイブ (ctx.milledに記録)
   | { t: "handArchiveHolomenToDeckShuffle" } // 手札すべて+アーカイブのホロメンすべてをデッキに戻してシャッフル (手札枚数をctx.returnedBothに記録)
   | { t: "drawPerHandReturned"; per: number; draw: number } // 手札からデッキに戻した枚数per枚につきdraw枚引く
   | { t: "revealOppHand" } // 相手の手札すべてを見る (詳細は効果使用者にだけ表示)
@@ -818,7 +834,7 @@ export type Op =
   | { t: "drawPerOppOshiDiff"; per: number; draw: number } // 相手の推しと異なる色を持つ相手のホロメンper人につきdraw枚引く
   | { t: "drawPerOppCenterBaton"; per: number; draw: number } // 相手のセンターのバトンタッチに必要な無色per個につきdraw枚引く
   | { t: "specialPerArtTargetBaton"; per: number; dmg: number } // このアーツの対象に、そのバトンコストper個につき特殊ダメージdmg
-  | { t: "healSelfPerArtDealt"; per: number; heal: number } // このアーツで与えたダメージper につきこのホロメンのHPheal回復 (ダメージ適用後)
+  | { t: "healSelfPerArtDealt"; per: number; heal: number } // このアーツで与えたダメージper につきこのホロメンのHPheal回復 (与ダメージ時の自動能力)
   | { t: "oppHoloPowerToHand"; n: number } // 相手は自身のホロパワーの上からn枚を手札に加える
   | {
       t: "cheerFromTopPerOverkill";
@@ -844,7 +860,7 @@ export type Op =
   | { t: "lifeImmuneFromOpp" } // このターンの間、自分のライフは相手の能力で減らない
   | { t: "artDiceParityBranch"; oddOps: Op[]; evenOps: Op[] } // そのアーツで振った出た目の合計が奇数ならoddOps/偶数ならevenOps
   | { t: "lifeLossMinus"; n: number } // 自分の減るライフ-X (全ダウン時能力の解決まで保留中のライフを減らす)
-  | { t: "downedYellMove"; n: number | "all"; color?: Color } // ダウンしたホロメンに付いているエールを自分の他のホロメンに付け替える
+  | { t: "downedYellMove"; n: number | "all"; min?: number; color?: Color } // ダウンしたホロメンに付いているエールを自分の他のホロメンに付け替える
   | {
       t: "downedToHand";
       what: "holomen" | "fan" | "support";
@@ -912,6 +928,8 @@ export type Op =
     } // engine内部op: 指定プレイヤーの同時誘発能力を解決して元ctxへ戻る
   | {
       t: "afterArtDamage";
+      /** このアーツの正の与ダメージで待機する自動能力の本文。 */
+      dealtOps?: Op[];
       targetStackId: number;
       targetPlayer: 0 | 1;
       targetPos: "center" | "collab" | { back: number };
@@ -929,6 +947,8 @@ export type Op =
       targetPlayer: 0 | 1;
       targetPos: "center" | "collab" | { back: number };
       damage: number;
+      /** 同じ処理で正の特殊ダメージを受けた相手ホロメンの人数 (Q752)。 */
+      opponentTargetCount?: number;
     } // engine内部op: ダウン処理の前に特殊ダメージの誘発能力を記録する
   | {
       t: "swapCollabBack";
@@ -999,7 +1019,9 @@ export type Op =
         | "stageTag" // 自分のステージの#tag持ちホロメン人数 (distinctNames=異なるカード名のみ)
         | "usedSupport" // このターンに自分が使っていたサポートカード枚数
         | "stageYell" // 自分のステージのエール総数
-        | "picked"; // この能力で戻した(選んで移動した)カード枚数 (ctx.pickedCards)
+        | "picked" // 戻した(選んで移動した)カード枚数 (ctx.pickedCards)
+        | "archiveFilter";
+      countFilter?: CardFilter;
       holoPowerCount?: boolean;
       milledSupportCount?: boolean;
       color?: Color;
@@ -1012,7 +1034,12 @@ export type Op =
       count?: number;
       filter?: TargetFilter;
     }
-  | { t: "stageYellToCheerBottom"; n: number }
+  | {
+      t: "stageYellToCheerBottom";
+      n: number;
+      /** 支払いコストだけは全枚数を要求する。通常の効果は可能な枚数を戻して続行。 */
+      cost?: boolean;
+    }
   | { t: "scheduleEndArchiveStageYell"; n: number }
   | { t: "selfYellToCheerBottom" } // このホロメンのエールすべてをエールデッキの下に戻す (枚数をctx.returnedYellに記録)
   | { t: "drawUntilReturnedYell" } // 手札がctx.returnedYellと同じ枚数になるまで引く
@@ -1102,7 +1129,7 @@ export type Op =
       ignoreEntered?: boolean;
       ignoreLevel?: boolean;
     }
-  | { t: "recoverRevealedSupport" } // 公開後アーカイブされたサポート1枚を任意で手札へ
+  | { t: "recoverRevealedSupport" } // 公開したサポート1枚をアーカイブするかわりに任意で手札へ
   | { t: "forceDiceResult"; value: number; index?: number } // 保留中のサイコロ1個の目を指定値として扱う
   | { t: "turnBackSpecialImmune" } // このターン中、自分のバック全員は特殊ダメージを受けない
   // リアクティブ確認後の特殊ダメージ再開 (確定した軽減・無効を持ち回る)
@@ -1129,11 +1156,19 @@ export type Op =
       specialColor?: Color;
       specialDmg: number;
       targetStackId: number;
+      /** 身代わり前の対象。特攻と「アーツの対象」の条件は受け先変更で変わらない。 */
+      originalTargetStackId?: number;
       artName: string;
+      /** アーツでダウンさせた時、11.3.1.1の能力プールで解決する本文。 */
+      downedOps?: Op[];
+      /** 与ダメージ時の自動能力。通常の使用時能力と同時に待機する。 */
+      dealtOps?: Op[];
       /** リアクティブスキルの確認済みフラグ */
       interruptChecked?: boolean;
       /** リアクティブスキルによる軽減量 */
       extraReduce?: number;
+      /** 閾値無効と通常軽減の適用順を選択済み。 */
+      thresholdOrderResolved?: boolean;
       /** ダメージ無効化 (「そのダメージを受けない」) */
       negate?: boolean;
       /** この被弾インスタンスで既にサイコロ軽減を確認したギフト保持者のスタックid (再確認防止) */
@@ -1235,6 +1270,7 @@ export type TriggerEvent =
   | "attachedFromHand" // このカードを手札から付けた時
   | "collabed" // このホロメンがコラボした時
   | "collabMoved" // このホロメンがコラボポジションに移動した時（交代も含む）
+  | "bloomed" // このホロメンがBloomした時（同レベルも含む）
   | "bloomLevelUp" // このホロメンのBloomレベルが上がった時
   | "oppBackDowned" // 相手のバックホロメンがダウンした時 (保持者は自分側)
   | "dealtSpecial" // このホロメンが相手のホロメンに特殊ダメージを与えた時
@@ -1288,6 +1324,8 @@ export interface TriggerDef {
   artDamageOnly?: boolean;
   /** 指定されたアーツで実際にカードを公開した時のみ誘発する。 */
   revealedByArt?: string;
+  /** 通常の使用時誘発と分離し、公開札をアーカイブする直前に適用する置換 */
+  revealedArchiveReplacement?: boolean;
   /** エンドステップ開始時: 装着者がこのターンにアーツを使っていること */
   subjectUsedArtThisTurn?: boolean;
   /** 特殊ダメージ閾値トリガー */
@@ -1693,6 +1731,8 @@ export type OshiReactive =
   | {
       /** 相手のホロメンに特殊ダメージを与えた時 */
       when: "dealtSpecial";
+      /** 同時に特殊ダメージを与えた相手の人数。旧保存形式では1人。 */
+      targetCount?: number;
       ops: Op[];
     }
   | {

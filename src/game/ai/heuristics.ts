@@ -2,10 +2,12 @@ import { getCard } from "../../data/loader";
 import type { ArtData, Color, HolomenCard } from "../../data/types";
 import {
   artBonusOf,
+  artGateError,
   availableArts,
   canPayArtCost,
   cardOf,
   effectiveMaxHp,
+  legalArtTargets,
   stackColors,
   topCard,
   usableArts,
@@ -203,6 +205,21 @@ const DEEP_EVAL_WEIGHTS = {
   deckOut: 30_000,
 };
 
+/** コスト・本文の使用条件・合法な対象を確認する。使用済み履歴は攻撃機会の評価で別に扱う。 */
+function readyFrontArts(
+  s: GameState,
+  pid: PlayerId,
+  pos: "center" | "collab",
+  stack: HolomenStack,
+): ArtData[] {
+  return availableArts(s, stack).filter(
+    (art) =>
+      canPayArtCost(s, stack, art.cost, art.description) &&
+      artGateError(s, pid, stack, pos, art) === null &&
+      legalArtTargets(s, pid, stack, art).length > 0,
+  );
+}
+
 /**
  * 現手番で実際に使えるアーツの戦術価値。
  * readyArtだけでは「使用済み」と「この直後にセンターをダウンできる」を
@@ -222,7 +239,7 @@ function attackTempo(s: GameState, pid: PlayerId): number {
   // 通常アーツはセンターだけでなくコラボも対象にできる。旧評価は
   // センター固定だったため、瀕死のコラボを落としてライフを詰める手を
   // 応手探索が過小評価していた。バックは対象拡張条件が複雑なので、
-  // ここでは常に合法な前列2か所だけを保守的に評価する。
+  // ここでは前列2か所のうち、挑発などの対象制限を満たす相手だけを評価する。
   const targets = [
     { pos: "center" as const, stack: enemy.center },
     ...(enemy.collab ? [{ pos: "collab" as const, stack: enemy.collab }] : []),
@@ -238,22 +255,15 @@ function attackTempo(s: GameState, pid: PlayerId): number {
     if (pos === "center" && p.usedCenterArtThisTurn) continue;
     if (pos === "collab" && p.usedCollabArtThisTurn) continue;
     let best = 0;
-    const artIndexes =
+    const arts =
       s.step === "performance"
-        ? usableArts(s, pos)
-        : availableArts(s, stack)
-            .map((art, index) =>
-              canPayArtCost(s, stack, art.cost, art.description) ? index : -1,
-            )
-            .filter((index) => index >= 0);
-    for (const artIndex of artIndexes) {
-      const art = availableArts(s, stack)[artIndex];
-      if (!art) continue;
+        ? usableArts(s, pos).map((index) => availableArts(s, stack)[index])
+        : readyFrontArts(s, pid, pos, stack);
+    for (const art of arts) {
       for (const target of targets) {
         if (
-          target.pos !== "center" &&
-          /このアーツは、相手のセンターホロメンしか対象にできない/.test(
-            art.description,
+          !legalArtTargets(s, pid, stack, art).some(
+            (entry) => entry.stack.id === target.stack.id,
           )
         )
           continue;
@@ -376,11 +386,15 @@ function sideScore(
     if (p.collab) score += DEEP_EVAL_WEIGHTS.collab;
   }
   // エール投資が実って「実際に撃てる」ようになった前列打点を加点する
-  for (const stack of [p.center, p.collab]) {
+  for (const [pos, stack] of [
+    ["center", p.center],
+    ["collab", p.collab],
+  ] as const) {
     if (!stack) continue;
-    const ready = availableArts(s, stack)
-      .filter((art) => canPayArtCost(s, stack, art.cost, art.description))
-      .reduce((best, art) => Math.max(best, artPower(s, stack, art)), 0);
+    const ready = readyFrontArts(s, pid, pos, stack).reduce(
+      (best, art) => Math.max(best, artPower(s, stack, art)),
+      0,
+    );
     score += ready * weights.readyArt;
   }
   // attackTempoは複数手先の同じ比較地点を評価するdeepプロファイル専用。

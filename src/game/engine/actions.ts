@@ -16,7 +16,7 @@ import {
   availableArtRefs,
 } from "./conditions";
 import { canPayArtCost } from "./costs";
-import { log, logEffect } from "./logging";
+import { log, logEffect, cardLogLabel } from "./logging";
 import {
   requireStep,
   requireNoPrompt,
@@ -61,7 +61,6 @@ import {
   collectAllyCollabedAbilities,
   collectYellArchivedTriggerAbilities,
   collectOshiStageActionAbilities,
-  collectOshiSkillUsedAbilities,
 } from "./triggers";
 
 // ------------------------------------------------------------
@@ -245,7 +244,11 @@ export function batonTouch(
   runOps(s, {
     player: s.turnPlayer,
     sourceStackId: centerSt.id,
-    rest: [{ t: "continueTriggerAbilities", abilities }],
+    // 10.6.3.1: 支払い・交換で最大HPが下がった場合も、待機能力より先にダウンする。
+    rest: [
+      { t: "checkRuleTiming" },
+      { t: "continueTriggerAbilities", abilities },
+    ],
     label: "バトンタッチ",
   });
 }
@@ -293,10 +296,23 @@ export function playSupport(
     // 先に付けると、コストで外すはずのツールと枠が競合する (1人1枚)。
     const costOps = playCostOps(s, s.turnPlayer, conditions, handUid);
     if (costOps.length > 0) {
+      // 10.7.2.1: コストの選択を始める前に宣言したカードを公開する。
+      // 手札から抜いた実体は、付与完了まで解決中領域に保持する。
+      (p.resolvingSupports ??= []).push(handUid);
+      log(
+        s,
+        s.turnPlayer,
+        `サポート「${cardLogLabel(s, handUid)}」を公開しました`,
+      );
       runOps(s, {
         player: s.turnPlayer,
+        sourceCardUid: handUid,
         pendingAttach: { uid: handUid, pos: attachPos },
-        rest: [...costOps, { t: "attachPlayedSupport" }],
+        rest: [
+          ...costOps,
+          { t: "attachPlayedSupport" },
+          { t: "finishSupportCard", uid: handUid },
+        ],
         label: `「${c.name}」`,
       });
       // コストの支払いが中断された場合でも、手札から抜いたカードを宙に浮かせない
@@ -373,19 +389,14 @@ export function useOshiSkill(s: GameState, sp: boolean): void {
     ? structuredClone(conditional.ops)
     : [...parseEffect(skill.description)!.ops];
   if (skill.cost === "X") ops.unshift({ t: "archiveHoloPowerAny", min: 1 });
-  const abilities = collectOshiSkillUsedAbilities(
-    s,
-    s.turnPlayer,
-    sp,
-    skill.name,
-  );
+  // 使用回数の予約と、解決後に起こる「使用した」事象を分ける。
   runOps(s, {
     player: s.turnPlayer,
     originOshiSkill: { name: skill.name, sp },
-    rest: ops,
-    pendingTriggers: abilities.length
-      ? [{ player: s.turnPlayer, abilities }]
-      : undefined,
+    rest: [
+      ...ops,
+      { t: "emitOshiSkillUsed", player: s.turnPlayer, sp, name: skill.name },
+    ],
     label: `「${skill.name}」`,
   });
 }

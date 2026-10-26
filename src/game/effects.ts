@@ -24,6 +24,7 @@ export type {
 } from "./effects/types";
 export {
   isOshiStageSkillSupported,
+  parseOshiStageCollab,
   parseOshiReactive,
   parseOshiConditional,
   parseOshiAdditionalCost,

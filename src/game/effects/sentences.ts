@@ -241,6 +241,15 @@ function parseSentenceInner(text: string): Op[] | null {
   if (m)
     return [{ t: "drawPerBothStageYell", per: num(m[1]), draw: num(m[2]) }];
 
+  // じゃんけんを必ず行い、勝った場合に続く本文だけを実行する。
+  m = text.match(
+    /^相手と勝敗が決まるまでじゃんけんする[:：]自分が勝ったなら、(.+)$/,
+  );
+  if (m) {
+    const winOps = parseSentence(m[1]);
+    return winOps ? [{ t: "janken", winOps }] : null;
+  }
+
   // --- シャッフル ---
   if (/^そして(自分の)?デッキをシャッフルする$/.test(text))
     return [{ t: "shuffleDeck" }];
@@ -265,6 +274,39 @@ function parseSentenceInner(text: string): Op[] | null {
     ];
   if (/^そして公開したカードを裏向きにしてホロパワーの下に戻す$/.test(text))
     return [{ t: "revealedTo", dest: "holoBottom" }];
+
+  m = text.match(
+    /^(.+?)に、自分のステージのエール1枚につき、特殊ダメージ(\d+)を与える$/,
+  );
+  if (m) {
+    const target = parseStackTarget(m[1]);
+    if (target)
+      return [
+        {
+          t: "special",
+          dmg: num(m[2]),
+          ...target,
+          scaleBy: { kind: "stageYell" },
+        },
+      ];
+  }
+  m = text.match(
+    /^自分のアーカイブの(.+?)1枚につき、このターンの間、(.+?)のアーツ\+(\d+)$/,
+  );
+  if (m) {
+    const filter = parseCardFilter(m[1]),
+      target = parseStackTarget(m[2]);
+    if (filter && target)
+      return [
+        {
+          t: "turnArtPlusPerCount",
+          value: num(m[3]),
+          per: "archiveFilter",
+          countFilter: filter,
+          ...target,
+        },
+      ];
+  }
 
   // --- 相手前列へのエール数比例特殊ダメージ ---
   m = text.match(
@@ -936,7 +978,7 @@ function parseSentenceInner(text: string): Op[] | null {
       return [
         {
           t: "optionalCost",
-          cost: [{ t: "stageYellToCheerBottom", n: num(m[1]) }],
+          cost: [{ t: "stageYellToCheerBottom", n: num(m[1]), cost: true }],
           then,
           label: `ステージのエール${m[1]}枚をエールデッキの下に戻して効果を使いますか？`,
         },
@@ -1110,6 +1152,9 @@ function parseSentenceInner(text: string): Op[] | null {
     const f = parseCardFilter(m[1]);
     if (f) return [{ t: "handRevealToDeckBottom", n: num(m[2]), filter: f }];
   }
+
+  m = text.match(/^(?:その|選んだ)ホロメンのアーツに必要な(?:◇|無色)-(\d+)$/);
+  if (m) return [{ t: "turnCostMod", target: "bound", artCostless: num(m[1]) }];
 
   // --- 選んだホロメン束縛 ---
   m = text.match(
@@ -2066,6 +2111,19 @@ function parseSentenceInner(text: string): Op[] | null {
       { t: "downedToHand", what: "holomen", n: num(m[2]) },
     ];
 
+  m = text.match(
+    /^このホロメンのエール(\d+)〜(\d+)枚を選び、自分の他のホロメンに割り振って付け替えられる$/,
+  );
+  if (m)
+    return [
+      {
+        t: "optionalCost",
+        cost: [],
+        then: [{ t: "downedYellMove", min: num(m[1]), n: num(m[2]) }],
+        label: "ダウンしたホロメンのエールを付け替えますか？",
+      },
+    ];
+
   // --- ダウンしたホロメンの(色)エールすべてを割り振って付け替え (兎田ぺこら) ---
   m = text.match(
     new RegExp(
@@ -2323,7 +2381,7 @@ function parseSentenceInner(text: string): Op[] | null {
     if (rest2) return [{ t: "draw", n: num(m[1]) }, ...rest2];
   }
 
-  // --- このアーツでダウンさせた時 (アーツ解決後に評価) ---
+  // --- このアーツでダウンさせた時 (ダウン処理で評価) ---
   // 「相手の**センター**ホロメンをダウンさせた時」のようにポジションが指定される
   // ことがある。アーツはコラボホロメンも対象にできるので、指定を落とすと
   // コラボをダウンさせただけで発揮してしまう
@@ -2998,6 +3056,8 @@ function parseSentenceInner(text: string): Op[] | null {
 /** 外側の optionalCost で使用可否を選んだ後は、内側の可能形Opを必須コストとして扱う。 */
 function asMandatoryCostOp(op: Op): Op {
   switch (op.t) {
+    case "backToDeckBottom":
+      return { ...op, cost: true };
     case "draw":
     case "oppDraw":
     case "dice":
@@ -3216,6 +3276,12 @@ function parseCostClause(text: string): { ops: Op[]; label: string } | null {
       ],
       label: `このホロメンの${m[1]}以外のエール${m[2]}枚をアーカイブ`,
     };
+  m = text.match(/^このホロメンのエール(\d+)〜(\d+)枚をアーカイブ$/);
+  if (m)
+    return {
+      ops: [{ t: "archiveSelfYellAny", min: num(m[1]), max: num(m[2]) }],
+      label: `このホロメンのエール${m[1]}〜${m[2]}枚をアーカイブ`,
+    };
   m = text.match(
     new RegExp(
       `^このホロメン(?:の|に付いている)${COLOR_RE}?エール(\\d+)枚をアーカイブ$`,
@@ -3341,6 +3407,7 @@ function parseCostClause(text: string): { ops: Op[]; label: string } | null {
       ops: [
         {
           t: "backToDeckBottom",
+          cost: true,
           n: num(m[2]),
           filter: {
             bloomLevel: "Debut",

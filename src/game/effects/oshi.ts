@@ -25,8 +25,22 @@ const SUPPORTED_OSHI_STAGE_SKILLS = new Set([
   "至福のひととき",
 ]);
 
-export function isOshiStageSkillSupported(name: string): boolean {
-  return SUPPORTED_OSHI_STAGE_SKILLS.has(name);
+/** コラボ時の条件と処理を能力名によらず解析する。 */
+export function parseOshiStageCollab(text: string): Op[] | null {
+  const match = normalizeText(text).match(
+    /^自分のホロメンがコラボした時、(.+)$/,
+  );
+  return match ? (parseEffect(match[1])?.ops ?? null) : null;
+}
+
+export function isOshiStageSkillSupported(
+  name: string,
+  description = "",
+): boolean {
+  return (
+    SUPPORTED_OSHI_STAGE_SKILLS.has(name) ||
+    parseOshiStageCollab(description) !== null
+  );
 }
 
 /**
@@ -210,7 +224,7 @@ export function parseOshiReactive(
   if (m) {
     const program = parseEffect(m[2]);
     if (!program || program.ops.length === 0) return null;
-    return { when: "dealtSpecial", ops: program.ops };
+    return { when: "dealtSpecial", targetCount: num(m[1]), ops: program.ops };
   }
 
   // 自分の(F)の能力でサイコロを振る時に使える：目の宣言 (AZKi推し)

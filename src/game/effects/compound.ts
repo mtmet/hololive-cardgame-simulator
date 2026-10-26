@@ -44,7 +44,42 @@ function parseEffectBody(text: string): EffectProgram | null {
     )
     .trim();
 
+  t = t.replace(
+    /じゃんけんする。自分が勝ったなら、/g,
+    "じゃんけんする：自分が勝ったなら、",
+  );
+  t = t.replace(
+    /相手のバックホロメン1人を選ぶ。選んだホロメンと相手のセンターホロメンを交代させる/g,
+    "相手のセンターホロメンとバックホロメン1人を交代させる",
+  );
   const ops: Op[] = [];
+
+  // デッキから公開した札だけを、手札とアーカイブへ振り分ける。
+  {
+    const match = t.match(
+      /^(自分が後攻で最初のターンなら、)?自分のデッキから、(.+?)(\d+)枚を公開する。その中から(\d+)枚を手札に加え、残ったカードをアーカイブする。そしてデッキをシャッフルする。?$/,
+    );
+    if (match) {
+      const filter = parseCardFilter(match[2]);
+      if (!filter) return null;
+      const searched: Op[] = [
+        {
+          t: "searchDeck",
+          filter,
+          nMax: num(match[3]),
+          dest: "hand",
+          revealThenPick: { n: num(match[4]), restTo: "archive" },
+        },
+        { t: "shuffleDeck" },
+      ];
+      return {
+        text,
+        ops: match[1]
+          ? [{ t: "if", cond: { c: "secondPlayerFirstTurn" }, then: searched }]
+          : searched,
+      };
+    }
+  }
 
   // 複数文にまたがる選択・条件・参照先を、他の効果と同じ解析経路で保持する。
   const compoundText = t
@@ -1281,7 +1316,9 @@ function parseEffectBody(text: string): EffectProgram | null {
       if (!then) return null;
       ops.push({
         t: "optionalCost",
-        cost: [{ t: "stageYellToCheerBottom", n: pendingYellReturn }],
+        cost: [
+          { t: "stageYellToCheerBottom", n: pendingYellReturn, cost: true },
+        ],
         then,
         label: `ステージのエール${pendingYellReturn}枚をエールデッキの下に戻して効果を使いますか？`,
       });

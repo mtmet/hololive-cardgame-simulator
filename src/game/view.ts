@@ -86,6 +86,13 @@ function promptIsPublic(prompt: Prompt): boolean {
   return prompt.type === "effectPickCard" && prompt.revealAll === true;
 }
 
+/** 過去の公開スナップショットがあっても、現在の非公開領域は公開しない。 */
+function isInHiddenZone(state: GameState, uid: string): boolean {
+  return ([0, 1] as const).some((player) =>
+    hiddenSlotsFor(state, player).some((slot) => slot.actualUid === uid),
+  );
+}
+
 /** 誰から見ても公開されているカード。視点によらない。 */
 function publicUids(state: GameState): Set<string> {
   const visible = new Set<string>();
@@ -104,7 +111,7 @@ function publicUids(state: GameState): Set<string> {
   const current = state.ruleResolution?.current;
   if (current)
     for (const uid of [...current.cards, ...current.supports, ...current.yells])
-      visible.add(uid);
+      if (!isInHiddenZone(state, uid)) visible.add(uid);
   return visible;
 }
 
@@ -134,6 +141,7 @@ export function isPublicUid(state: GameState, uid: string): boolean {
   const current = state.ruleResolution?.current;
   return (
     current !== undefined &&
+    !isInHiddenZone(state, uid) &&
     (current.cards.includes(uid) ||
       current.supports.includes(uid) ||
       current.yells.includes(uid))
@@ -210,13 +218,19 @@ function remapDeep(
   value: unknown,
   remap: ReadonlyMap<string, string>,
   field?: string,
+  keyRemap: ReadonlyMap<string, string> = remap,
+  contextHistory?: (
+    uids: string[],
+    context: Record<string, unknown>,
+    field: string,
+  ) => string[],
 ): void {
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index++) {
       const item = value[index];
       if (typeof item === "string" && field && UID_FIELDS.has(field))
         value[index] = remap.get(item) ?? item;
-      else remapDeep(item, remap, field);
+      else remapDeep(item, remap, field, keyRemap, contextHistory);
     }
     return;
   }
@@ -224,16 +238,28 @@ function remapDeep(
   const record = value as Record<string, unknown>;
   for (const [key, item] of Object.entries(record)) {
     const mappedKey =
-      field === "usedTriggersThisTurn" ? remapCompositeKey(key, remap) : key;
+      field === "usedTriggersThisTurn" ? remapCompositeKey(key, keyRemap) : key;
     const mappedItem =
-      typeof item === "string" && UID_FIELDS.has(key)
-        ? (remap.get(item) ?? item)
-        : key === "key" && typeof item === "string"
-          ? remapCompositeKey(item, remap)
-          : item;
+      ([
+        "pickedCards",
+        "milled",
+        "downedCards",
+        "downedYells",
+        "downedSupports",
+      ].includes(key) ||
+        (key === "revealed" && record.revealedHistory !== false)) &&
+      Array.isArray(item) &&
+      contextHistory
+        ? contextHistory(item, record, key)
+        : typeof item === "string" && UID_FIELDS.has(key)
+          ? (remap.get(item) ?? item)
+          : key === "key" && typeof item === "string"
+            ? remapCompositeKey(item, keyRemap)
+            : item;
     if (mappedKey !== key) delete record[key];
     record[mappedKey] = mappedItem;
-    if (typeof mappedItem !== "string") remapDeep(mappedItem, remap, key);
+    if (typeof mappedItem !== "string")
+      remapDeep(mappedItem, remap, key, keyRemap, contextHistory);
   }
 }
 
@@ -268,7 +294,43 @@ export function gameViewFor(state: GameState, viewer: GameViewer): GameState {
   // uidToCardはキーを書き換えるのではなく、公開可能な対応だけから再構築する。
   view.uidToCard = {};
   view.uidToArtwork = {};
-  remapDeep(view, remap);
+  // 使用済みキーも過去の公開カードを参照する。位置順ではなくUID順で
+  // 履歴専用IDを割り当て、文脈内のkeyとカウンターの対応だけを維持する。
+  const keyRemap = new Map(
+    [...remap.keys()].sort().map((uid, index) => [uid, `history-key-${index}`]),
+  );
+  // 移動済みの選択結果とダウン前情報は、現在の手札位置を表すIDにしない。
+  // 公開しない選択では内容も選択者だけへ渡す。履歴IDは実体の所在と無関係。
+  let historyIndex = 0;
+  const historyReferences = (
+    uids: string[],
+    context: Record<string, unknown>,
+    field: string,
+  ) =>
+    uids.map((uid) => {
+      if (visible.has(uid)) return uid;
+      const reference = `history-${field === "pickedCards" ? "picked" : field}-${historyIndex++}`;
+      if (
+        field === "revealed"
+          ? context.revealedOwnerOnly === false ||
+            context.revealedOwner === viewer
+          : field !== "pickedCards" ||
+            context.pickedCardsOwnerOnly === false ||
+            context.pickedCardsOwner === viewer
+      ) {
+        const cardId = state.uidToCard[uid];
+        if (cardId !== undefined) view.uidToCard[reference] = cardId;
+        const artwork = state.uidToArtwork?.[uid];
+        if (artwork !== undefined) view.uidToArtwork![reference] = artwork;
+      }
+      return reference;
+    });
+  // ダウン処理の直前情報は、先行能力で手札へ戻ったカードの現在位置と切り離す。
+  const current = view.ruleResolution?.current;
+  if (current)
+    for (const field of ["cards", "yells", "supports"] as const)
+      current[field] = historyReferences(current[field], {}, `downed-${field}`);
+  remapDeep(view, remap, undefined, keyRemap, historyReferences);
   for (const uid of visible) {
     const cardId = state.uidToCard[uid];
     if (cardId !== undefined) view.uidToCard[uid] = cardId;
@@ -310,6 +372,24 @@ export function gameViewFor(state: GameState, viewer: GameViewer): GameState {
       });
     }
   }
+
+  // 公開済みのBloom/ダウン履歴は、現在の非公開位置とは別の参照にする。
+  // 枚数とカード情報は条件判定に必要だが、デッキ内の位置は履歴に含まれない。
+  for (const field of [
+    "bloomedCardUidsThisTurn",
+    "downedUidsThisTurn",
+    "downedUidsPrevTurn",
+  ] as const)
+    for (const player of [0, 1] as const)
+      view[field][player] = state[field][player].map((uid, index) => {
+        if (visible.has(uid)) return uid;
+        const reference = `history-${field}-p${player}-${index}`;
+        const cardId = state.uidToCard[uid];
+        if (cardId !== undefined) view.uidToCard[reference] = cardId;
+        const artwork = state.uidToArtwork?.[uid];
+        if (artwork !== undefined) view.uidToArtwork![reference] = artwork;
+        return reference;
+      });
 
   // 履歴の実UIDは、カードが非公開領域へ移ると位置IDとして現在地を示してしまう。
   // 公開中のカードはそのまま追跡させて演出の起点に使い、非公開のものだけ

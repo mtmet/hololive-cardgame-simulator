@@ -584,6 +584,7 @@ export function parseGift(text: string | undefined): GiftDef {
         g.triggers.push({
           event: "artUsed",
           revealedByArt: cm[1],
+          revealedArchiveReplacement: true,
           positions,
           timesPerTurn,
           oppTurnOnly: oppTurnOnly || undefined,
@@ -690,8 +691,8 @@ export function parseGift(text: string | undefined): GiftDef {
           /^自分のメインステップ(?:で|に使える[:：])、?(.+)$/,
         );
         if (b) {
-          // 先頭の条件節「(cond)(の時|なら)、」を剥がす (parseCondが成立する時のみ)
-          const cm = b[1].match(/^(.+?)(?:の時|なら)、(.+)$/);
+          // 先頭の条件節「(cond)(の時|時|なら)、」を剥がす (parseCondが成立する時のみ)
+          const cm = b[1].match(/^(.+?)(?:の時|時|なら)、(.+)$/);
           if (cm && parseCond(cm[1])) {
             condText = cm[1];
             body = cm[2];
